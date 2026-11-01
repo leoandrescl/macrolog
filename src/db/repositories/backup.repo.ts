@@ -1,6 +1,7 @@
 import { db } from "@/db/db";
 import { ACTIVE_PROFILE_KEY, SCHEMA_VERSION } from "@/lib/constants";
 import { formatFileDate } from "@/lib/format";
+import { notifyLocalDataChange } from "@/lib/syncEvents";
 import { backupSchema } from "@/lib/validation";
 import type { BackupFile } from "@/types/domain";
 
@@ -119,6 +120,7 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
       if (meta.length) await db.meta.bulkPut(meta);
     },
   );
+  notifyLocalDataChange();
 }
 
 export async function clearAllData(): Promise<void> {
@@ -137,4 +139,5 @@ export async function clearAllData(): Promise<void> {
       await db.meta.clear();
     },
   );
+  notifyLocalDataChange();
 }

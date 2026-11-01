@@ -188,9 +188,9 @@ export function ProfilesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cuentas locales"
+        eyebrow="Tu cuenta"
         title="Perfiles"
-        description="Metas, diario y bloques independientes. La biblioteca de alimentos es compartida entre todos los perfiles."
+        description="Planes, etapas o clientes dentro de tu cuenta. La biblioteca de alimentos se comparte entre todos tus perfiles."
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />

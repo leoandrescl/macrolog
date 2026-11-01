@@ -1,6 +1,7 @@
 import { db, getActiveProfileId } from "@/db/db";
 import { ACTIVE_PROFILE_KEY, DEFAULT_MEAL_NAMES } from "@/lib/constants";
 import { createId } from "@/lib/id";
+import { notifyLocalDataChange } from "@/lib/syncEvents";
 import type {
   MacroSplitPct,
   MealBlock,
@@ -45,6 +46,7 @@ export async function createProfile(input: CreateProfileInput): Promise<Profile>
     await db.meta.put({ key: ACTIVE_PROFILE_KEY, value: profile.id });
   });
 
+  notifyLocalDataChange();
   return profile;
 }
 
@@ -59,6 +61,7 @@ export async function updateProfile(
     macroSplitPct: input.macroSplitPct ? { ...input.macroSplitPct } : undefined,
     updatedAt: Date.now(),
   });
+  notifyLocalDataChange();
 }
 
 export async function deleteProfile(id: string): Promise<void> {
@@ -77,4 +80,5 @@ export async function deleteProfile(id: string): Promise<void> {
       await db.meta.delete(ACTIVE_PROFILE_KEY);
     }
   });
+  notifyLocalDataChange();
 }

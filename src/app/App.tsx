@@ -3,13 +3,17 @@ import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 
 import { AppErrorBoundary } from "@/app/AppErrorBoundary";
+import { AuthProvider, useAuth } from "@/app/AuthProvider";
+import { CloudSyncProvider } from "@/app/CloudSyncProvider";
 import { ProfileProvider } from "@/app/ProfileProvider";
 import { PwaUpdater } from "@/app/PwaUpdater";
 import { ThemeProvider } from "@/app/ThemeProvider";
 import { ToastProvider } from "@/app/ToastProvider";
 import { AppShell } from "@/components/layout/AppShell";
+import { SplashScreen } from "@/components/layout/SplashScreen";
 import { Logo } from "@/components/ui/Logo";
 import { db, getActiveProfileId, setActiveProfileId } from "@/db/db";
+import { AuthPage } from "@/features/auth/AuthPage";
 import { usePersistentStorage } from "@/hooks/usePersistentStorage";
 
 const DiaryPage = lazy(() =>
@@ -55,17 +59,8 @@ function RouteFallback() {
   );
 }
 
-function SplashScreen() {
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-canvas">
-      <Logo size={54} showText={false} />
-      <p className="text-sm font-semibold tracking-tight text-fg">MacroLog</p>
-      <div className="h-1 w-28 overflow-hidden rounded-full bg-surface-2">
-        <div className="h-full w-1/2 animate-pulse rounded-full bg-accent" />
-      </div>
-      <p className="sr-only">Cargando tus datos locales</p>
-    </div>
-  );
+function SplashMessage() {
+  return <SplashScreen message="Cargando tus datos locales..." />;
 }
 
 function ScrollToTop() {
@@ -104,10 +99,10 @@ function AppGate() {
     });
   }, [activeProfile, data?.activeProfileId, hasProfiles]);
 
-  if (data === undefined) return <SplashScreen />;
+  if (data === undefined) return <SplashMessage />;
   if (!activeProfile) {
     return (
-      <Suspense fallback={<SplashScreen />}>
+      <Suspense fallback={<SplashMessage />}>
         <OnboardingPage />
       </Suspense>
     );
@@ -133,15 +128,35 @@ function AppGate() {
   );
 }
 
+function AuthGate() {
+  const { status, user } = useAuth();
+
+  if (status === "loading") {
+    return <SplashScreen message="Verificando tu sesión..." />;
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
+
+  return (
+    <BrowserRouter>
+      <CloudSyncProvider user={user}>
+        <AppGate />
+      </CloudSyncProvider>
+    </BrowserRouter>
+  );
+}
+
 export function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter>
-          <AppErrorBoundary>
-            <AppGate />
-          </AppErrorBoundary>
-        </BrowserRouter>
+        <AppErrorBoundary>
+          <AuthProvider>
+            <AuthGate />
+          </AuthProvider>
+        </AppErrorBoundary>
         {import.meta.env.PROD ? <PwaUpdater /> : null}
       </ToastProvider>
     </ThemeProvider>

@@ -1,5 +1,6 @@
 import { db } from "@/db/db";
 import { createId } from "@/lib/id";
+import { notifyLocalDataChange } from "@/lib/syncEvents";
 import type { MealBlock } from "@/types/domain";
 
 export async function createMeal(profileId: string, name: string): Promise<MealBlock> {
@@ -21,6 +22,7 @@ export async function createMeal(profileId: string, name: string): Promise<MealB
   };
 
   await db.meals.add(meal);
+  notifyLocalDataChange();
   return meal;
 }
 
@@ -29,6 +31,7 @@ export async function renameMeal(id: string, name: string): Promise<void> {
     name: name.trim(),
     updatedAt: Date.now(),
   });
+  notifyLocalDataChange();
 }
 
 export async function moveMeal(
@@ -63,6 +66,7 @@ export async function moveMeal(
       updatedAt: now,
     });
   });
+  notifyLocalDataChange();
 }
 
 /**
@@ -77,9 +81,11 @@ export async function deleteMeal(meal: MealBlock): Promise<"deleted" | "archived
       archivedAt: Date.now(),
       updatedAt: Date.now(),
     });
+    notifyLocalDataChange();
     return "archived";
   }
 
   await db.meals.delete(meal.id);
+  notifyLocalDataChange();
   return "deleted";
 }

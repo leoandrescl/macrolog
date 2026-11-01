@@ -1,6 +1,7 @@
 import { db } from "@/db/db";
 import { createId } from "@/lib/id";
 import { normalizeText } from "@/lib/normalize";
+import { notifyLocalDataChange } from "@/lib/syncEvents";
 import type { Nutrition } from "@/types/domain";
 
 export interface CreateFoodInput {
@@ -21,6 +22,7 @@ export async function createFood(input: CreateFoodInput): Promise<string> {
     updatedAt: now,
   });
 
+  notifyLocalDataChange();
   return id;
 }
 
@@ -31,9 +33,11 @@ export async function updateFood(id: string, input: CreateFoodInput): Promise<vo
     per100: { ...input.per100 },
     updatedAt: Date.now(),
   });
+  notifyLocalDataChange();
 }
 
 /** El historial conserva un snapshot, por lo que borrar no altera días pasados. */
 export async function deleteFood(id: string): Promise<void> {
   await db.foods.delete(id);
+  notifyLocalDataChange();
 }

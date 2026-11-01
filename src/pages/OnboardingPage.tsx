@@ -52,12 +52,12 @@ const BENEFITS = [
   {
     icon: WifiOff,
     title: "Funciona sin internet",
-    text: "Todo queda en tu dispositivo y se abre al instante.",
+    text: "Registra sin conexión; tus cambios se sincronizan al volver.",
   },
   {
     icon: LockKeyhole,
-    title: "Sin cuentas ni fricción",
-    text: "Perfiles independientes, respaldo exportable y cero tracking.",
+    title: "Cuenta privada",
+    text: "Cada integrante entra con su cuenta y ve solo sus propios perfiles.",
   },
 ];
 
@@ -133,7 +133,7 @@ export function OnboardingPage() {
               al gramo.
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              Sin cuentas. Todo en tu dispositivo, listo para funcionar offline.
+              Tu cuenta privada, tus perfiles y tus macros, incluso sin conexión.
             </p>
           </div>
 
@@ -148,8 +148,8 @@ export function OnboardingPage() {
             </h1>
             <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
               Un diario limpio para saber cuánto te queda de calorías, proteína,
-              carbohidratos y grasa. Sin cuentas, sin ruido y sin perder el control de las
-              porciones.
+              carbohidratos y grasa. Una cuenta privada, sin ruido y sin perder el control
+              de las porciones.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -269,8 +269,8 @@ export function OnboardingPage() {
               </Button>
 
               <p className="text-center text-[11px] leading-relaxed text-subtle">
-                Tus datos se guardan solo en este dispositivo. Podrás exportar un respaldo
-                desde Ajustes.
+                Tu cuenta se sincroniza de forma privada. También puedes exportar un
+                respaldo desde Ajustes.
               </p>
             </form>
           </Card>

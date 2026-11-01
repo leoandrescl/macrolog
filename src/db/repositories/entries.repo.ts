@@ -1,5 +1,6 @@
 import { db } from "@/db/db";
 import { createId } from "@/lib/id";
+import { notifyLocalDataChange } from "@/lib/syncEvents";
 import type { DateKey, DiaryEntry, MealBlock } from "@/types/domain";
 
 export interface AddEntryInput {
@@ -39,6 +40,7 @@ export async function addEntry(input: AddEntryInput): Promise<DiaryEntry> {
   };
 
   await db.entries.add(entry);
+  notifyLocalDataChange();
   return entry;
 }
 
@@ -56,15 +58,18 @@ export async function updateEntry(
     mealId: input.mealId,
     updatedAt: Date.now(),
   });
+  notifyLocalDataChange();
 }
 
 export async function deleteEntry(id: string): Promise<void> {
   await db.entries.delete(id);
+  notifyLocalDataChange();
 }
 
 /** Restaura un registro eliminado con su snapshot original (para "Deshacer"). */
 export async function restoreEntry(entry: DiaryEntry): Promise<void> {
   await db.entries.put(entry);
+  notifyLocalDataChange();
 }
 
 export async function getRecentFoodIds(profileId: string, limit = 6): Promise<string[]> {

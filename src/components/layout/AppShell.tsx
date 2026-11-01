@@ -1,6 +1,6 @@
 import { Apple, CalendarDays, type LucideIcon, Settings, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 
 import { ProfileSwitcher } from "@/components/layout/ProfileSwitcher";
 import { Logo } from "@/components/ui/Logo";
@@ -97,7 +97,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface/70 backdrop-blur-xl lg:flex">
         <div className="px-5 pb-5 pt-6">
-          <Logo size={36} />
+          <Link
+            to="/diario"
+            aria-label="Ir al diario"
+            className="inline-flex rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          >
+            <Logo size={36} />
+          </Link>
         </div>
 
         <div className="px-4">
@@ -114,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="rounded-2xl border border-line bg-surface-2/50 p-3">
             <p className="text-[11px] leading-relaxed text-subtle">{RAW_BASIS_COPY}</p>
             <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-subtle">
-              MacroLog v{APP_VERSION} · Local-first
+              MacroLog v{APP_VERSION} · Local-first + sync
             </p>
           </div>
         </div>
@@ -122,7 +128,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
         <div className="flex h-16 items-center justify-between gap-3 px-4">
-          <Logo size={30} />
+          <Link
+            to="/diario"
+            aria-label="Ir al diario"
+            className="inline-flex rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          >
+            <Logo size={30} />
+          </Link>
           <ProfileSwitcher variant="compact" />
         </div>
       </header>

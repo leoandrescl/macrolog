@@ -6,16 +6,17 @@
   "description": "PWA local-first para el registro exacto de calorías y macronutrientes.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "dev:api": "wrangler dev --port 8787",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "qa:visual": "node scripts/visual-check.mjs",
-    "qa:pwa": "node scripts/pwa-check.mjs",
+    "db:migrate": "wrangler d1 migrations apply macrolog-db --remote",
     "qa:deploy": "node scripts/deploy-check.mjs",
+    "user:reset-password": "node scripts/reset-password.mjs",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",
+    "@cloudflare/workers-types": "^5.20261101.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",

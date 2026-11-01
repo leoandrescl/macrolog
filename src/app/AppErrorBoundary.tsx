@@ -30,8 +30,8 @@ export class AppErrorBoundary extends Component<
           Algo salió mal
         </h1>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
-          Tus datos siguen guardados en este dispositivo. Recarga la aplicación para
-          volver a intentarlo.
+          Tus datos siguen en tu cuenta y en la copia local de este dispositivo. Recarga
+          la aplicación para volver a intentarlo.
         </p>
         <button
           type="button"

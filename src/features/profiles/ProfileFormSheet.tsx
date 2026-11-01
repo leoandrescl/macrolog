@@ -1,16 +1,22 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId, useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import { useToast } from "@/app/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { TextField } from "@/components/ui/TextField";
 import { createProfile, updateProfile } from "@/db/repositories/profiles.repo";
+import { MacroGoalsFields } from "@/features/profiles/MacroGoalsFields";
 import { cn } from "@/lib/cn";
 import { DEFAULT_GOALS, PROFILE_COLORS } from "@/lib/constants";
-import { formatKcal } from "@/lib/format";
-import { parseDecimalInput } from "@/lib/parseNumber";
+import {
+  DEFAULT_MACRO_PRESET_ID,
+  findMacroSplitPresetId,
+  getMacroSplitPreset,
+  gramsFromCaloriesAndSplit,
+  type MacroPresetId,
+} from "@/lib/macroSplits";
 import {
   type ProfileFormInput,
   type ProfileFormOutput,
@@ -43,6 +49,11 @@ function profileDefaults(profile?: Profile | null): ProfileFormInput {
   };
 }
 
+function initialPresetFor(profile?: Profile | null): MacroPresetId | null {
+  if (!profile) return DEFAULT_MACRO_PRESET_ID;
+  return findMacroSplitPresetId(profile.macroSplitPct);
+}
+
 export function ProfileFormSheet({
   open,
   profile,
@@ -55,46 +66,47 @@ export function ProfileFormSheet({
   const { toast } = useToast();
   const formId = useId();
   const [formError, setFormError] = useState<string | null>(null);
+  const [macroPresetId, setMacroPresetId] = useState<MacroPresetId | null>(() =>
+    initialPresetFor(profile),
+  );
   const isEditing = Boolean(profile);
 
+  const form = useForm<ProfileFormInput, unknown, ProfileFormOutput>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: profileDefaults(profile),
+  });
   const {
     register,
     handleSubmit,
     reset,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<ProfileFormInput, unknown, ProfileFormOutput>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: profileDefaults(profile),
-  });
-
-  const watched = useWatch({ control });
-  const macroKcal =
-    (parseDecimalInput(watched.protein) ?? 0) * 4 +
-    (parseDecimalInput(watched.carbs) ?? 0) * 4 +
-    (parseDecimalInput(watched.fat) ?? 0) * 9;
-  const kcalValue = parseDecimalInput(watched.kcal);
-  const macroDifference = kcalValue !== undefined ? Math.abs(kcalValue - macroKcal) : 0;
-  const showMacroHint = macroKcal > 0 && macroDifference > Math.max(50, macroKcal * 0.1);
+  } = form;
 
   useEffect(() => {
     if (!open) return;
     setFormError(null);
+    setMacroPresetId(initialPresetFor(profile));
     reset(profileDefaults(profile));
   }, [open, profile, reset]);
 
   const onSubmit = async (values: ProfileFormOutput) => {
     setFormError(null);
     try {
+      const activePreset = getMacroSplitPreset(macroPresetId);
+      const goals = activePreset
+        ? gramsFromCaloriesAndSplit(values.kcal, activePreset.split)
+        : {
+            kcal: values.kcal,
+            protein: values.protein,
+            carbs: values.carbs,
+            fat: values.fat,
+          };
       const payload = {
         name: values.name,
         color: values.color,
-        goals: {
-          kcal: values.kcal,
-          protein: values.protein,
-          carbs: values.carbs,
-          fat: values.fat,
-        },
+        goals,
+        macroSplitPct: activePreset?.split,
       };
 
       if (profile) {
@@ -184,55 +196,11 @@ export function ProfileFormSheet({
           )}
         />
 
-        <div className="rounded-2xl border border-line bg-surface-2/60 p-3.5">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-subtle">
-            Meta diaria
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <TextField
-              label="Calorías"
-              suffix="kcal"
-              inputMode="decimal"
-              error={errors.kcal?.message}
-              {...register("kcal")}
-            />
-            <TextField
-              label="Proteína"
-              suffix="g"
-              inputMode="decimal"
-              error={errors.protein?.message}
-              {...register("protein")}
-            />
-            <TextField
-              label="Carbohidratos"
-              suffix="g"
-              inputMode="decimal"
-              error={errors.carbs?.message}
-              {...register("carbs")}
-            />
-            <TextField
-              label="Grasa"
-              suffix="g"
-              inputMode="decimal"
-              error={errors.fat?.message}
-              {...register("fat")}
-            />
-          </div>
-          <p
-            className={cn(
-              "mt-3 text-xs leading-relaxed",
-              showMacroHint ? "text-warning" : "text-subtle",
-            )}
-          >
-            {macroKcal > 0
-              ? `Los macros suman ${formatKcal(macroKcal)} kcal.${
-                  showMacroHint
-                    ? " La diferencia con la meta calórica es alta; puedes guardar igualmente."
-                    : ""
-                }`
-              : "Los macros pueden quedar en 0 si no aplica para este perfil."}
-          </p>
-        </div>
+        <MacroGoalsFields
+          form={form}
+          presetId={macroPresetId}
+          onPresetIdChange={setMacroPresetId}
+        />
 
         {formError ? (
           <p className="rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-xs text-danger">

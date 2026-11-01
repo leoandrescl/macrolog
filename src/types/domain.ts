@@ -14,11 +14,20 @@ export interface Nutrition {
   fat: number;
 }
 
+/** Porcentaje de calorías diarias asignado a cada macro. Debe sumar 100. */
+export interface MacroSplitPct {
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export interface Profile {
   id: Id;
   name: string;
   color: ProfileColor;
   goals: Nutrition;
+  /** Distribución activa para recalcular macros al cambiar las calorías. */
+  macroSplitPct?: MacroSplitPct;
   createdAt: number;
   updatedAt: number;
 }

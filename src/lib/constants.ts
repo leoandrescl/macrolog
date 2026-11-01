@@ -11,7 +11,7 @@ export const DEFAULT_GOALS: Nutrition = {
   kcal: 2000,
   protein: 150,
   carbs: 200,
-  fat: 65,
+  fat: 67,
 };
 
 export const DEFAULT_MEAL_NAMES = ["Desayuno", "Almuerzo", "Once", "Cena"] as const;
@@ -35,7 +35,7 @@ export const MAX_GRAMS = 10_000;
 export const MAX_FOOD_KCAL_PER_100 = 1_000;
 export const MAX_FOOD_MACRO_PER_100 = 100;
 export const MAX_GOAL_KCAL = 20_000;
-export const MAX_GOAL_MACRO = 1_000;
+export const MAX_GOAL_MACRO = 3_000;
 
 export const MACRO_ROWS = [
   { key: "protein", label: "Proteína", shortLabel: "P", unit: "g" },

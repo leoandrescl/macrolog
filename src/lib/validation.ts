@@ -85,11 +85,23 @@ export const nutritionSchema = z.object({
   fat: z.number().finite().min(0),
 });
 
+export const macroSplitPctSchema = z
+  .object({
+    protein: z.number().finite().min(0).max(100),
+    carbs: z.number().finite().min(0).max(100),
+    fat: z.number().finite().min(0).max(100),
+  })
+  .refine(
+    (split) => Math.abs(split.protein + split.carbs + split.fat - 100) < 0.01,
+    "La distribución debe sumar 100%",
+  );
+
 export const profileEntitySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   color: profileColorSchema,
   goals: nutritionSchema,
+  macroSplitPct: macroSplitPctSchema.optional(),
   createdAt: z.number().finite(),
   updatedAt: z.number().finite(),
 });

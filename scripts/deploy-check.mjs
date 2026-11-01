@@ -35,11 +35,28 @@ const security = {
 };
 
 await page.getByLabel("Nombre del perfil").fill("Deploy Test");
+await page.getByRole("button", { name: /Alta proteína/ }).click();
+await page.waitForFunction(() => {
+  const protein = document.querySelector('input[name="protein"]')?.value;
+  const carbs = document.querySelector('input[name="carbs"]')?.value;
+  const fat = document.querySelector('input[name="fat"]')?.value;
+  return protein === "150" && carbs === "225" && fat === "56";
+});
 await page.getByRole("button", { name: "Crear mi perfil" }).click();
 await page.waitForURL("**/diario");
 await page.getByRole("button", { name: "Registrar alimento" }).waitFor();
 
 const nav = page.locator('nav[aria-label="Navegación principal"]').last();
+await nav.getByRole("link", { name: "Perfiles" }).click();
+await page.getByText(/Distribución automática/).waitFor();
+const macroSplit = await page.evaluate(() => {
+  const text = document.body.textContent ?? "";
+  return {
+    hasPresetLabel:
+      text.includes("P 30%") && text.includes("C 45%") && text.includes("G 25%"),
+    hasAutoGrams: text.includes("150") && text.includes("225") && text.includes("56"),
+  };
+});
 await nav.getByRole("link", { name: "Alimentos" }).click();
 await page.getByRole("button", { name: "Crear primer alimento" }).click();
 await page.getByLabel("Nombre del alimento").fill("Arroz blanco");
@@ -104,6 +121,7 @@ await browser.close();
 
 const result = {
   security,
+  macroSplit,
   diaryState,
   download: { name: downloadName, saved: Boolean(downloadPath) },
   pwa,

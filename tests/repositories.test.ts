@@ -5,7 +5,11 @@ import { clearAllData, createBackup, restoreBackup } from "@/db/repositories/bac
 import { addEntry, deleteEntry, restoreEntry } from "@/db/repositories/entries.repo";
 import { createFood, deleteFood, updateFood } from "@/db/repositories/foods.repo";
 import { deleteMeal } from "@/db/repositories/meals.repo";
-import { createProfile, deleteProfile } from "@/db/repositories/profiles.repo";
+import {
+  createProfile,
+  deleteProfile,
+  updateProfile,
+} from "@/db/repositories/profiles.repo";
 import { DEFAULT_GOALS } from "@/lib/constants";
 import type { Nutrition } from "@/types/domain";
 
@@ -62,6 +66,26 @@ describe("repositorios locales", () => {
       "Once",
       "Cena",
     ]);
+  });
+
+  it("persiste y puede quitar la distribución automática de macros", async () => {
+    const split = { protein: 30, carbs: 40, fat: 30 };
+    const profile = await createProfile({
+      name: "Auto",
+      color: "lime",
+      goals: DEFAULT_GOALS,
+      macroSplitPct: split,
+    });
+
+    expect((await db.profiles.get(profile.id))?.macroSplitPct).toEqual(split);
+
+    await updateProfile(profile.id, {
+      name: profile.name,
+      color: profile.color,
+      goals: profile.goals,
+    });
+
+    expect((await db.profiles.get(profile.id))?.macroSplitPct).toBeUndefined();
   });
 
   it("guarda snapshots y no altera el historial al editar o borrar el alimento", async () => {
@@ -124,12 +148,23 @@ describe("repositorios locales", () => {
 
   it("exporta e importa todos los datos en una transacción", async () => {
     const profile = await seedProfile();
+    await updateProfile(profile.id, {
+      name: profile.name,
+      color: profile.color,
+      goals: profile.goals,
+      macroSplitPct: { protein: 30, carbs: 40, fat: 30 },
+    });
     await seedEntry(profile.id);
 
     const backup = await createBackup();
     await clearAllData();
 
     expect(backup.data.profiles).toHaveLength(1);
+    expect(backup.data.profiles[0]?.macroSplitPct).toEqual({
+      protein: 30,
+      carbs: 40,
+      fat: 30,
+    });
     expect(backup.data.foods).toHaveLength(1);
     expect(backup.data.entries).toHaveLength(1);
 
@@ -139,5 +174,10 @@ describe("repositorios locales", () => {
     expect(await db.foods.count()).toBe(1);
     expect(await db.entries.count()).toBe(1);
     expect(await getActiveProfileId()).toBe(profile.id);
+    expect((await db.profiles.get(profile.id))?.macroSplitPct).toEqual({
+      protein: 30,
+      carbs: 40,
+      fat: 30,
+    });
   });
 });

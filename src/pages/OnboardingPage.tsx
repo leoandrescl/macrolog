@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/ui/Logo";
 import { TextField } from "@/components/ui/TextField";
 import { createProfile } from "@/db/repositories/profiles.repo";
+import { MacroGoalsFields } from "@/features/profiles/MacroGoalsFields";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { cn } from "@/lib/cn";
 import {
@@ -17,6 +18,12 @@ import {
   PROFILE_COLORS,
   RAW_BASIS_COPY,
 } from "@/lib/constants";
+import {
+  DEFAULT_MACRO_PRESET_ID,
+  getMacroSplitPreset,
+  gramsFromCaloriesAndSplit,
+  type MacroPresetId,
+} from "@/lib/macroSplits";
 import {
   type ProfileFormInput,
   type ProfileFormOutput,
@@ -58,29 +65,39 @@ export function OnboardingPage() {
   usePageTitle("Bienvenido");
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
+  const [macroPresetId, setMacroPresetId] = useState<MacroPresetId | null>(
+    DEFAULT_MACRO_PRESET_ID,
+  );
 
+  const form = useForm<ProfileFormInput, unknown, ProfileFormOutput>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: DEFAULT_VALUES,
+  });
   const {
     register,
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<ProfileFormInput, unknown, ProfileFormOutput>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: DEFAULT_VALUES,
-  });
+  } = form;
 
   const onSubmit = async (values: ProfileFormOutput) => {
     setFormError(null);
     try {
+      const activePreset = getMacroSplitPreset(macroPresetId);
+      const goals = activePreset
+        ? gramsFromCaloriesAndSplit(values.kcal, activePreset.split)
+        : {
+            kcal: values.kcal,
+            protein: values.protein,
+            carbs: values.carbs,
+            fat: values.fat,
+          };
+
       await createProfile({
         name: values.name,
         color: values.color,
-        goals: {
-          kcal: values.kcal,
-          protein: values.protein,
-          carbs: values.carbs,
-          fat: values.fat,
-        },
+        goals,
+        macroSplitPct: activePreset?.split,
       });
 
       navigate("/diario", { replace: true });
@@ -210,41 +227,11 @@ export function OnboardingPage() {
                 )}
               />
 
-              <div className="rounded-2xl border border-line bg-surface-2/55 p-3.5">
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-subtle">
-                  Meta diaria
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <TextField
-                    label="Calorías"
-                    suffix="kcal"
-                    inputMode="decimal"
-                    error={errors.kcal?.message}
-                    {...register("kcal")}
-                  />
-                  <TextField
-                    label="Proteína"
-                    suffix="g"
-                    inputMode="decimal"
-                    error={errors.protein?.message}
-                    {...register("protein")}
-                  />
-                  <TextField
-                    label="Carbohidratos"
-                    suffix="g"
-                    inputMode="decimal"
-                    error={errors.carbs?.message}
-                    {...register("carbs")}
-                  />
-                  <TextField
-                    label="Grasa"
-                    suffix="g"
-                    inputMode="decimal"
-                    error={errors.fat?.message}
-                    {...register("fat")}
-                  />
-                </div>
-              </div>
+              <MacroGoalsFields
+                form={form}
+                presetId={macroPresetId}
+                onPresetIdChange={setMacroPresetId}
+              />
 
               <div className="rounded-2xl border border-line bg-surface-2/40 p-3.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-subtle">

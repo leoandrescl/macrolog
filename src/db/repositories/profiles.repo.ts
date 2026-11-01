@@ -1,12 +1,19 @@
 import { db, getActiveProfileId } from "@/db/db";
 import { ACTIVE_PROFILE_KEY, DEFAULT_MEAL_NAMES } from "@/lib/constants";
 import { createId } from "@/lib/id";
-import type { MealBlock, Nutrition, Profile, ProfileColor } from "@/types/domain";
+import type {
+  MacroSplitPct,
+  MealBlock,
+  Nutrition,
+  Profile,
+  ProfileColor,
+} from "@/types/domain";
 
 export interface CreateProfileInput {
   name: string;
   color: ProfileColor;
   goals: Nutrition;
+  macroSplitPct?: MacroSplitPct;
 }
 
 export async function createProfile(input: CreateProfileInput): Promise<Profile> {
@@ -19,6 +26,9 @@ export async function createProfile(input: CreateProfileInput): Promise<Profile>
     createdAt: now,
     updatedAt: now,
   };
+  if (input.macroSplitPct) {
+    profile.macroSplitPct = { ...input.macroSplitPct };
+  }
 
   const meals: MealBlock[] = DEFAULT_MEAL_NAMES.map((name, index) => ({
     id: createId(),
@@ -46,6 +56,7 @@ export async function updateProfile(
     name: input.name.trim(),
     color: input.color,
     goals: { ...input.goals },
+    macroSplitPct: input.macroSplitPct ? { ...input.macroSplitPct } : undefined,
     updatedAt: Date.now(),
   });
 }

@@ -18,6 +18,7 @@ import { MealBlockSheet } from "@/features/profiles/MealBlockSheet";
 import { ProfileFormSheet } from "@/features/profiles/ProfileFormSheet";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { formatKcal, formatMacro } from "@/lib/format";
+import { formatSplitPercentages } from "@/lib/macroSplits";
 import type { MealBlock, Profile } from "@/types/domain";
 
 function GoalsSummary({ profile }: { profile: Profile }) {
@@ -224,12 +225,19 @@ export function ProfilesPage() {
                 <p className="mt-0.5 text-xs text-muted">
                   Meta diaria y diario independiente
                 </p>
+                {activeProfile.macroSplitPct ? (
+                  <p className="num mt-1 text-[10px] font-medium text-subtle">
+                    Distribución automática ·{" "}
+                    {formatSplitPercentages(activeProfile.macroSplitPct)}
+                  </p>
+                ) : null}
                 <GoalsSummary profile={activeProfile} />
               </div>
               <Button
                 variant="secondary"
                 size="sm"
                 className="shrink-0"
+                aria-label={`Editar perfil ${activeProfile.name}`}
                 onClick={() => setEditingProfile(activeProfile)}
               >
                 <Pencil className="size-3.5" />

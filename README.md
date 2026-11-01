@@ -18,6 +18,8 @@ PWA local-first para registrar calorías y macronutrientes **gramo a gramo**, co
 
 - Crear, editar, cambiar y eliminar perfiles locales.
 - Meta diaria independiente por perfil: kcal, proteína, carbohidratos y grasa.
+- **Distribuciones automáticas de macros** con presets de porcentajes: Equilibrado, Alta proteína, Rendimiento, Metabólico y Alta energía. Al cambiar las calorías se recalculan los gramos objetivo automáticamente.
+- Opción **Manual** para ajustar los gramos de cada macro cuando se necesite. La distribución seleccionada se guarda con el perfil y se muestra en su tarjeta.
 - Bloques de comida propios de cada perfil: desayuno, almuerzo, once, cena o bloques personalizados.
 - Los bloques se pueden agregar, renombrar, reordenar y eliminar. Si un bloque tiene historial, se archiva para conservar los registros pasados.
 
@@ -215,6 +217,7 @@ Las capturas quedan en `.artifacts/` (ignorado por Git). El script de PWA verifi
 - La unidad es siempre gramos, sin conversiones a tazas, unidades o porciones.
 - El peso siempre representa alimento crudo y limpio.
 - Los macros se calculan sin redondear y se formatean solo al mostrar.
+- Las metas pueden calcularse desde calorías y una distribución porcentual (P/C/G) o definirse manualmente en gramos.
 - Las fechas del diario usan fecha local, nunca UTC.
 - Los registros guardan un snapshot para que el historial sea inmutable frente a cambios en la biblioteca.
 

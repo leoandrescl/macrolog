@@ -36,6 +36,25 @@ await page.getByText("Crea tu primer perfil").waitFor();
 await shot("01-onboarding-mobile");
 
 await page.getByLabel("Nombre del perfil").fill("Ana");
+await page.getByRole("button", { name: /Alta proteína/ }).click();
+await page.getByLabel("Calorías").fill("1700");
+await page.waitForFunction(() => {
+  const protein = document.querySelector('input[name="protein"]')?.value;
+  const carbs = document.querySelector('input[name="carbs"]')?.value;
+  const fat = document.querySelector('input[name="fat"]')?.value;
+  return protein === "128" && carbs === "191" && fat === "47";
+});
+await shot("01b-onboarding-distribucion-mobile");
+
+await page.getByRole("button", { name: /Equilibrado/ }).click();
+await page.getByLabel("Calorías").fill("2000");
+await page.waitForFunction(() => {
+  const protein = document.querySelector('input[name="protein"]')?.value;
+  const carbs = document.querySelector('input[name="carbs"]')?.value;
+  const fat = document.querySelector('input[name="fat"]')?.value;
+  return protein === "150" && carbs === "200" && fat === "67";
+});
+
 await page.getByRole("button", { name: "Crear mi perfil" }).click();
 await page.waitForURL("**/diario");
 await page.getByRole("button", { name: "Registrar alimento" }).waitFor();
@@ -86,6 +105,36 @@ await page.getByRole("button", { name: "Agregar bloque" }).click();
 await waitClosed();
 await page.getByText("Pre-entreno").first().waitFor();
 await shot("10-perfiles-bloque-nuevo-mobile");
+
+await page.getByRole("button", { name: /Editar perfil/ }).click();
+await page.getByText("Editar perfil").first().waitFor();
+const selectedPreset = await page
+  .getByRole("button", { name: /Equilibrado/ })
+  .getAttribute("aria-pressed");
+if (selectedPreset !== "true") {
+  throw new Error("El preset equilibrado no quedó seleccionado al editar.");
+}
+await page.getByRole("dialog").getByLabel("Calorías").fill("1800");
+await page.waitForFunction(() => {
+  const dialog = document.querySelector("dialog[open]");
+  const protein = dialog?.querySelector('input[name="protein"]')?.value;
+  const carbs = dialog?.querySelector('input[name="carbs"]')?.value;
+  const fat = dialog?.querySelector('input[name="fat"]')?.value;
+  return protein === "135" && carbs === "180" && fat === "60";
+});
+await shot("10b-perfil-metas-auto-mobile");
+await page.getByRole("button", { name: "Guardar cambios" }).click();
+await waitClosed();
+await page.getByText("Perfil actualizado").waitFor();
+await page.getByText("Distribución automática").waitFor();
+await page.getByText("1.800", { exact: true }).first().waitFor();
+const savedAutoGoals = await page.evaluate(() => {
+  const text = document.body.textContent ?? "";
+  return text.includes("135") && text.includes("180") && text.includes("60");
+});
+if (!savedAutoGoals) {
+  throw new Error("Los macros automáticos no se guardaron correctamente.");
+}
 
 await bottomNav.getByRole("link", { name: "Ajustes" }).click();
 await page.getByText("Datos y respaldo").waitFor();

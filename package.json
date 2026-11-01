@@ -1,0 +1,50 @@
+{
+  "name": "macrolog",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "PWA local-first para el registro exacto de calorías y macronutrientes.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "qa:visual": "node scripts/visual-check.mjs",
+    "qa:pwa": "node scripts/pwa-check.mjs",
+    "qa:deploy": "node scripts/deploy-check.mjs",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^7.0.1",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "lucide-react": "^1.66.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-hook-form": "^7.91.0",
+    "react-router": "^8.5.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "fake-indexeddb": "^6.2.7",
+    "playwright-core": "^1.64.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.5",
+    "workbox-build": "^7.4.1",
+    "workbox-window": "^7.4.1",
+    "wrangler": "^4.156.0"
+  }
+}

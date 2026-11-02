@@ -1,3 +1,4 @@
+import { importLegacyFoods } from "./foods";
 import type { Env } from "./types";
 import {
   DATA_BLOB_LIMIT,
@@ -11,14 +12,15 @@ export interface CloudSnapshot {
   activeProfileId: string | null;
   data: {
     profiles: unknown[];
-    foods: unknown[];
     meals: unknown[];
     entries: unknown[];
     meta: unknown[];
+    /** Solo por compatibilidad con versiones que subían alimentos por cuenta. */
+    foods?: unknown[];
   };
 }
 
-const SNAPSHOT_FIELDS = ["profiles", "foods", "meals", "entries", "meta"] as const;
+const SNAPSHOT_FIELDS = ["profiles", "meals", "entries", "meta"] as const;
 
 export function validateSnapshot(value: unknown): CloudSnapshot {
   const snapshot = requireRecord(value, "El snapshot no es válido.");
@@ -34,7 +36,23 @@ export function validateSnapshot(value: unknown): CloudSnapshot {
     }
   }
 
+  if (data.foods !== undefined && !Array.isArray(data.foods)) {
+    throw new HttpError("La colección foods no es válida.", 400);
+  }
+
   return snapshot as unknown as CloudSnapshot;
+}
+
+function withoutFoods(snapshot: CloudSnapshot): CloudSnapshot {
+  return {
+    activeProfileId: snapshot.activeProfileId,
+    data: {
+      profiles: snapshot.data.profiles,
+      meals: snapshot.data.meals,
+      entries: snapshot.data.entries,
+      meta: snapshot.data.meta,
+    },
+  };
 }
 
 export async function loadSnapshot(
@@ -53,8 +71,15 @@ export async function loadSnapshot(
 
   try {
     const text = await gunzipString(row.payload);
+    const snapshot = validateSnapshot(JSON.parse(text));
+
+    // Migración transparente: los alimentos antiguos pasan a la tabla global.
+    if (Array.isArray(snapshot.data.foods) && snapshot.data.foods.length) {
+      await importLegacyFoods(env, snapshot.data.foods);
+    }
+
     return {
-      snapshot: JSON.parse(text) as CloudSnapshot,
+      snapshot: withoutFoods(snapshot),
       revision: row.revision,
       updatedAt: row.updated_at,
     };
@@ -69,7 +94,11 @@ export async function saveSnapshot(
   snapshot: CloudSnapshot,
   baseRevision: number,
 ): Promise<{ revision: number; updatedAt: number }> {
-  const json = JSON.stringify(snapshot);
+  if (Array.isArray(snapshot.data.foods) && snapshot.data.foods.length) {
+    await importLegacyFoods(env, snapshot.data.foods);
+  }
+
+  const json = JSON.stringify(withoutFoods(snapshot));
   if (new TextEncoder().encode(json).byteLength > 8_000_000) {
     throw new HttpError(
       "El respaldo supera el tamaño permitido.",

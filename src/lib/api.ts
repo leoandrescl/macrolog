@@ -1,4 +1,4 @@
-import type { BackupData } from "@/types/domain";
+import type { DiaryEntry, Food, MealBlock, MetaRow, Profile } from "@/types/domain";
 
 export interface AuthUser {
   id: string;
@@ -8,7 +8,14 @@ export interface AuthUser {
 
 export interface CloudSnapshot {
   activeProfileId: string | null;
-  data: BackupData;
+  data: {
+    profiles: Profile[];
+    meals: MealBlock[];
+    entries: DiaryEntry[];
+    meta: MetaRow[];
+    /** Solo aparece en snapshots antiguos; hoy los alimentos son globales. */
+    foods?: Food[];
+  };
 }
 
 export interface CloudDataResponse {
@@ -172,4 +179,26 @@ export async function putCloudData(
 
 export async function deleteCloudData(): Promise<void> {
   await request<{ ok: true }>("/api/data", { method: "DELETE" });
+}
+
+export interface GlobalFoodsResponse {
+  foods: Food[];
+  updatedAt: number;
+}
+
+export async function fetchGlobalFoods(): Promise<GlobalFoodsResponse> {
+  return request<GlobalFoodsResponse>("/api/foods", {}, 30_000);
+}
+
+export async function pushGlobalFoods(
+  foods: Food[],
+): Promise<{ updated: number; updatedAt: number }> {
+  return request<{ updated: number; updatedAt: number }>(
+    "/api/foods",
+    {
+      method: "PUT",
+      body: JSON.stringify({ foods }),
+    },
+    45_000,
+  );
 }

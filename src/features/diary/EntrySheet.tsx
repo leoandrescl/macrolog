@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Minus, Plus, Search, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { useGlobalFoods } from "@/app/GlobalFoodsProvider";
 import { useToast } from "@/app/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -94,6 +95,7 @@ export function EntrySheet({
   entry?: DiaryEntry | null;
 }) {
   const { toast } = useToast();
+  const { status: foodsSyncStatus } = useGlobalFoods();
   const navigate = useNavigate();
   const gramsRef = useRef<HTMLInputElement>(null);
   const isEditing = Boolean(entry);
@@ -115,7 +117,14 @@ export function EntrySheet({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const foods = useLiveQuery(() => db.foods.orderBy("nameNormalized").toArray(), []);
+  const foods = useLiveQuery(
+    () =>
+      db.foods
+        .orderBy("nameNormalized")
+        .filter((food) => food.deletedAt === undefined)
+        .toArray(),
+    [],
+  );
   const recentIds = useLiveQuery(() => getRecentFoodIds(profile.id, 6), [profile.id]);
 
   const sortedMeals = useMemo(() => sortMeals(meals), [meals]);
@@ -192,6 +201,9 @@ export function EntrySheet({
     const recentSet = new Set(recentFoods.map((food) => food.id));
     return filteredFoods.filter((food) => !recentSet.has(food.id));
   }, [filteredFoods, normalizedQuery, recentFoods]);
+
+  const foodsLoading =
+    foods === undefined || (foods.length === 0 && foodsSyncStatus === "loading");
 
   const grams = parsePositiveInteger(gramsValue);
   const previewNutrition = useMemo(
@@ -328,7 +340,7 @@ export function EntrySheet({
   const sheetDescription = isEditing
     ? "Ajusta la cantidad o el bloque de comida."
     : step === "food"
-      ? "Busca en tu biblioteca. Los valores son por 100 g en crudo."
+      ? "Busca en la biblioteca global. Los valores son por 100 g en crudo."
       : "Indica el peso consumido, en crudo y sin desperdicios.";
 
   const footer =
@@ -388,13 +400,13 @@ export function EntrySheet({
             />
           </div>
 
-          {foods === undefined ? (
+          {foodsLoading ? (
             <FoodSearchSkeleton />
           ) : foods.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-line px-5 py-8 text-center">
-              <p className="text-sm font-semibold text-fg">Tu biblioteca está vacía</p>
+              <p className="text-sm font-semibold text-fg">La biblioteca está vacía</p>
               <p className="mt-1 text-xs leading-relaxed text-muted">
-                Crea tu primer alimento con sus valores por 100 g en crudo.
+                Crea el primer alimento global con sus valores por 100 g en crudo.
               </p>
               <Button className="mt-4" onClick={goToCreateFood}>
                 <Plus className="size-4" />

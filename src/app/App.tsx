@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { AppErrorBoundary } from "@/app/AppErrorBoundary";
 import { AuthProvider, useAuth } from "@/app/AuthProvider";
 import { CloudSyncProvider } from "@/app/CloudSyncProvider";
+import { GlobalFoodsProvider } from "@/app/GlobalFoodsProvider";
 import { ProfileProvider } from "@/app/ProfileProvider";
 import { PwaUpdater } from "@/app/PwaUpdater";
 import { ThemeProvider } from "@/app/ThemeProvider";
@@ -142,7 +143,9 @@ function AuthGate() {
   return (
     <BrowserRouter>
       <CloudSyncProvider user={user}>
-        <AppGate />
+        <GlobalFoodsProvider>
+          <AppGate />
+        </GlobalFoodsProvider>
       </CloudSyncProvider>
     </BrowserRouter>
   );

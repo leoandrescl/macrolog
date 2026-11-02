@@ -113,6 +113,7 @@ export const foodEntitySchema = z.object({
   per100: nutritionSchema,
   createdAt: z.number().finite(),
   updatedAt: z.number().finite(),
+  deletedAt: z.number().finite().optional(),
 });
 
 export const mealEntitySchema = z.object({

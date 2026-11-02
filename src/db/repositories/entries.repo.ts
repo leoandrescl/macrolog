@@ -14,6 +14,9 @@ export interface AddEntryInput {
 export async function addEntry(input: AddEntryInput): Promise<DiaryEntry> {
   const food = await db.foods.get(input.foodId);
   if (!food) throw new Error("El alimento ya no existe.");
+  if (food.deletedAt !== undefined) {
+    throw new Error("El alimento fue eliminado de la biblioteca global.");
+  }
 
   const meal = await db.meals.get(input.mealId);
   if (!meal || meal.profileId !== input.profileId) {

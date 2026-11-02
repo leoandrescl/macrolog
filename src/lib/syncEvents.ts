@@ -1,17 +1,32 @@
 type LocalChangeListener = () => void;
 
-const listeners = new Set<LocalChangeListener>();
+const accountListeners = new Set<LocalChangeListener>();
+const foodListeners = new Set<LocalChangeListener>();
 let suppressionDepth = 0;
 
+/** Cambios privados de la cuenta: perfiles, bloques y registros. */
 export function notifyLocalDataChange(): void {
   if (suppressionDepth > 0) return;
-  for (const listener of listeners) listener();
+  for (const listener of accountListeners) listener();
 }
 
 export function onLocalDataChange(listener: LocalChangeListener): () => void {
-  listeners.add(listener);
+  accountListeners.add(listener);
   return () => {
-    listeners.delete(listener);
+    accountListeners.delete(listener);
+  };
+}
+
+/** Cambios de la biblioteca global de alimentos. */
+export function notifyFoodsChange(): void {
+  if (suppressionDepth > 0) return;
+  for (const listener of foodListeners) listener();
+}
+
+export function onFoodsChange(listener: LocalChangeListener): () => void {
+  foodListeners.add(listener);
+  return () => {
+    foodListeners.delete(listener);
   };
 }
 

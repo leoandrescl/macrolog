@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { clearAllData } from "@/db/repositories/backup.repo";
+import { clearAccountData } from "@/db/repositories/backup.repo";
 import {
   type AuthUser,
   changePasswordRequest,
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       await withoutLocalChangeNotifications(async () => {
-        await clearAllData();
+        await clearAccountData();
       });
     } catch {
       /* La sesión ya fue revocada; la copia local se limpia al volver a entrar. */

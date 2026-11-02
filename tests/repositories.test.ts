@@ -102,6 +102,11 @@ describe("repositorios locales", () => {
     expect(stored?.foodName).toBe("Pechuga de pollo");
     expect(stored?.per100.kcal).toBe(165);
     expect(stored?.grams).toBe(140);
+
+    const deletedFood = await db.foods.get(foodId);
+    expect(deletedFood).toBeDefined();
+    expect(deletedFood?.deletedAt).toBeTypeOf("number");
+    expect(deletedFood?.updatedAt).toBe(deletedFood?.deletedAt);
   });
 
   it("archiva un bloque con historial y elimina uno vacío", async () => {
@@ -179,5 +184,22 @@ describe("repositorios locales", () => {
       carbs: 40,
       fat: 30,
     });
+  });
+
+  it("preserva los alimentos globales que no están en el respaldo", async () => {
+    const profile = await seedProfile();
+    await seedEntry(profile.id);
+    const backup = await createBackup();
+
+    await clearAllData();
+    await createFood({
+      name: "Alimento posterior",
+      per100: { kcal: 50, protein: 1, carbs: 10, fat: 0 },
+    });
+
+    await restoreBackup(backup);
+
+    expect(await db.foods.count()).toBe(2);
+    expect(await db.profiles.count()).toBe(1);
   });
 });

@@ -40,6 +40,8 @@ export interface Food {
   per100: Nutrition;
   createdAt: number;
   updatedAt: number;
+  /** Borrado lógico global: conserva el historial y propaga la eliminación. */
+  deletedAt?: number;
 }
 
 export interface MealBlock {

@@ -452,8 +452,8 @@ export function SettingsPage() {
             <div>
               <h2 className="text-sm font-semibold text-fg">Datos y respaldo</h2>
               <p className="mt-0.5 text-xs text-muted">
-                Se guardan en tu dispositivo y se sincronizan de forma privada con tu
-                cuenta.
+                Perfiles y registros privados por cuenta. La biblioteca de alimentos es
+                global para toda la familia.
               </p>
             </div>
           </div>
@@ -512,16 +512,17 @@ export function SettingsPage() {
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-subtle">
-            El respaldo JSON incluye todos los perfiles, alimentos, bloques y registros.
-            Importarlo reemplaza los datos actuales de tu cuenta.
+            El respaldo JSON incluye perfiles, alimentos, bloques y registros. Al
+            importarlo, los perfiles y registros se reemplazan; los alimentos se fusionan
+            con la biblioteca global.
           </p>
 
           <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-danger/15 bg-danger/5 p-3.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold text-fg">Borrar todos los datos</p>
+              <p className="text-xs font-semibold text-fg">Borrar mis datos</p>
               <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
-                Elimina perfiles, alimentos y registros de tu cuenta y de este
-                dispositivo. Descarga un respaldo antes si quieres conservarlos.
+                Elimina los perfiles, bloques y registros de tu cuenta y de este
+                dispositivo. La biblioteca global de alimentos se conserva.
               </p>
             </div>
             <Button
@@ -554,10 +555,10 @@ export function SettingsPage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-line bg-surface-2/40 p-3">
               <Cloud className="size-4 text-accent" />
-              <p className="mt-2 text-xs font-semibold text-fg">Sincronización privada</p>
+              <p className="mt-2 text-xs font-semibold text-fg">Privado + global</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                Tus datos se guardan por cuenta en Cloudflare y se sincronizan al volver a
-                conectarte.
+                Perfiles y registros se sincronizan por cuenta. Los alimentos se comparten
+                entre todas las cuentas y perfiles.
               </p>
             </div>
             <div className="rounded-2xl border border-line bg-surface-2/40 p-3">
@@ -596,7 +597,7 @@ export function SettingsPage() {
       <ConfirmDialog
         open={Boolean(pendingBackup)}
         title="Importar respaldo"
-        description={`Se reemplazarán todos los datos actuales con ${importSummary}. Esta acción no se puede deshacer.`}
+        description={`Se reemplazarán los perfiles, bloques y registros actuales con ${importSummary}. Los alimentos se fusionarán con la biblioteca global. Esta acción no se puede deshacer.`}
         confirmLabel="Reemplazar datos"
         tone="danger"
         loading={importing}
@@ -605,8 +606,8 @@ export function SettingsPage() {
       />
       <ConfirmDialog
         open={confirmClear}
-        title="Borrar todos los datos"
-        description="Se eliminarán todos los perfiles, alimentos, bloques y registros de tu cuenta y de este dispositivo. Esta acción no se puede deshacer."
+        title="Borrar mis datos"
+        description="Se eliminarán los perfiles, bloques y registros de tu cuenta y de este dispositivo. La biblioteca global de alimentos no se borra. Esta acción no se puede deshacer."
         confirmLabel="Borrar todo"
         tone="danger"
         loading={clearing}

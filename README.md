@@ -5,7 +5,7 @@ PWA **local-first** para registrar calorías y macronutrientes **gramo a gramo**
 - Cada integrante entra con su propia cuenta y ve solo sus datos.
 - Se puede usar offline; los cambios se sincronizan al volver la conexión.
 - Perfiles para etapas, planes, clientes o miembros del hogar.
-- Biblioteca de alimentos con valores **por 100 g en crudo y limpio**.
+- Biblioteca de alimentos **global**, compartida por todas las cuentas y perfiles, con valores por 100 g en crudo y limpio.
 - Optimizada para móvil, tablet y escritorio.
 
 > Repositorio: [github.com/leoandrescl/macrolog](https://github.com/leoandrescl/macrolog)
@@ -39,10 +39,12 @@ PWA **local-first** para registrar calorías y macronutrientes **gramo a gramo**
 
 ### Biblioteca de alimentos
 
-- Biblioteca compartida entre todos los perfiles de una misma cuenta.
+- Biblioteca **global**: los alimentos están disponibles para todas las cuentas y todos los perfiles.
+- Los cambios y eliminaciones se propagan automáticamente entre dispositivos y cuentas.
 - Valores por 100 g: kcal, proteína, carbohidratos y grasa.
 - Búsqueda insensible a tildes y mayúsculas.
 - Snapshot por registro: editar o eliminar un alimento no altera el historial.
+- Borrado lógico con tombstones para que una eliminación no “resucite” en otro dispositivo.
 - Todos los pesos son en crudo, sin cáscaras, huesos ni desperdicios.
 
 ### Diario
@@ -139,12 +141,14 @@ npm run deploy       # build + deploy a Cloudflare Workers
 worker/
 ├─ index.ts           # Router de API y endpoints
 ├─ auth.ts            # Sesiones y password lookup
-├─ data.ts            # Snapshot gzip, revisiones y conflictos
+├─ data.ts            # Snapshot gzip por cuenta, revisiones y conflictos
+├─ foods.ts           # Biblioteca global: validación, listado y upsert
 ├─ types.ts           # Bindings y entidades del Worker
 └─ utils.ts           # Cookies, hashing, gzip, rate limit y validación
 
 migrations/
-└─ 0001_initial.sql   # users, sessions, user_data, auth_attempts
+├─ 0001_initial.sql   # users, sessions, user_data, auth_attempts
+└─ 0002_global_foods.sql # foods compartida, updated_at y deleted_at
 
 src/
 ├─ app/               # bootstrap, auth, sync, router y shell
@@ -172,31 +176,38 @@ src/
 
 ### Sincronización
 
-- La app escribe primero en IndexedDB y notifica a un coordinador de sync.
-- El coordinador envía un snapshot completo comprimido con gzip a D1.
+La sincronización tiene dos canales independientes:
+
+1. **Datos privados de la cuenta** (`/api/data`): perfiles, bloques, registros y perfil activo. Se envían como un snapshot completo comprimido con gzip.
+2. **Biblioteca global** (`/api/foods`): alimentos compartidos por todas las cuentas. Se suben los alimentos locales y luego se descarga la tabla global; la fusión conserva el `updatedAt` más reciente por ID.
+
+- La app escribe primero en IndexedDB y notifica al coordinador correspondiente.
 - `user_data.revision` implementa concurrencia optimista; un conflicto devuelve 409.
-- Ante un conflicto, el cliente descarga, une registros por ID eligiendo el `updatedAt` más reciente y reintenta.
-- Si no hay red, el cambio queda marcado como pendiente y se reintenta al reconectar, enfocar la app o cada 15 segundos.
-- El snapshot se limita a 8 MB sin comprimir y 1,9 MB comprimido.
-- Logout y “Borrar todos los datos” requieren conexión para no dejar una sesión o copia huérfana.
+- Ante un conflicto de cuenta, el cliente descarga, une registros por ID eligiendo el `updatedAt` más reciente y reintenta.
+- Los alimentos no viajan dentro del snapshot privado. Cualquier snapshot antiguo que todavía los incluya se migra automáticamente a la tabla global al leerlo o guardarlo.
+- Si no hay red, los cambios quedan pendientes y se reintentan al reconectar, enfocar la app o periódicamente.
+- El snapshot de cuenta se limita a 8 MB sin comprimir y 1,9 MB comprimido.
+- Logout y “Borrar mis datos” requieren conexión para no dejar una sesión o copia huérfana. La biblioteca global se conserva.
 
 ### Modelo local
 
 - `profiles`: perfil, color, metas y distribución porcentual opcional.
-- `foods`: biblioteca de la cuenta, valores por 100 g.
+- `foods`: biblioteca global, valores por 100 g y `deletedAt` para borrado lógico.
 - `meals`: bloques por perfil, orden y archivado lógico.
 - `entries`: registros con fecha local, gramos y snapshot del alimento.
 - `meta`: perfil activo y metadatos.
-- `macrolog.sync` en localStorage: owner, revisión, estado pendiente y última sincronización.
+- `macrolog.sync` en localStorage: owner, revisión, estado pendiente y última sincronización de la cuenta.
+- `macrolog.foods.sync` en localStorage: última sincronización de la biblioteca global.
 
 ### Modelo remoto en D1
 
 - `users`: cuenta, email único y credenciales hasheadas.
 - `sessions`: hashes de tokens, usuario y expiración.
-- `user_data`: un snapshot gzip por cuenta, revisión y fecha.
+- `user_data`: un snapshot gzip por cuenta, revisión y fecha. No contiene alimentos.
+- `foods`: biblioteca global compartida, con `updated_at` y `deleted_at`.
 - `auth_attempts`: ventanas de rate limiting.
 
-Cada consulta de datos usa el `user.id` obtenido de la sesión; nunca se acepta un propietario enviado por el cliente.
+Cada consulta de datos privados usa el `user.id` obtenido de la sesión; nunca se acepta un propietario enviado por el cliente. La biblioteca de alimentos es de lectura y escritura para cualquier cuenta autenticada, porque es global por diseño.
 
 ---
 
@@ -204,8 +215,9 @@ Cada consulta de datos usa el `user.id` obtenido de la sesión; nunca se acepta 
 
 - Sin analytics de terceros ni tracking publicitario.
 - Los datos de la cuenta se guardan en Cloudflare D1 y se transmiten por HTTPS.
-- Cada cuenta está aislada por sesión; un miembro de la familia no puede leer los datos de otro sin sus credenciales.
-- La copia local permite usar la app offline. Al cerrar sesión se borra del dispositivo.
+- Cada cuenta está aislada por sesión; un miembro de la familia no puede leer los perfiles ni registros de otro sin sus credenciales.
+- La biblioteca de alimentos es global y compartida por diseño: no contiene datos personales, solo valores nutricionales.
+- La copia local permite usar la app offline. Al cerrar sesión se borran perfiles y registros del dispositivo; la biblioteca global puede permanecer cacheada.
 - El respaldo JSON sigue disponible para portabilidad y como copia independiente.
 - No hay cifrado de extremo a extremo; Cloudflare cifra el almacenamiento de D1 en reposo según su plataforma.
 
@@ -265,7 +277,7 @@ npm run lint
 npm run build
 ```
 
-Los tests cubren nutrición, fechas locales, búsqueda, perfiles, snapshots, archivado, backups, distribuciones de macros, restauración y merge de snapshots en la nube.
+Los tests cubren nutrición, fechas locales, búsqueda, perfiles, snapshots, archivado, backups, distribuciones de macros, restauración, merge de snapshots en la nube y fusión de la biblioteca global con tombstones.
 
 ### Smoke test del deploy
 
@@ -274,14 +286,15 @@ export MACROLOG_FAMILY_CODE="tu-codigo-familiar"
 npm run qa:deploy
 ```
 
-El script crea una cuenta temporal, verifica registro/login, distribución automática de macros, sincronización, recarga de sesión, exportación, deep links, PWA offline, logout y login posterior. Usa `playwright-core` con Chrome instalado.
+El script crea una cuenta temporal, verifica registro/login, distribución automática de macros, sincronización, recarga de sesión, exportación, deep links, PWA offline, logout y login posterior. Además crea una segunda cuenta y comprueba que ve el alimento creado por la primera, validando la biblioteca global. Usa `playwright-core` con Chrome instalado.
 
 ---
 
 ## Decisiones de producto
 
 - La **cuenta** es la persona; los **perfiles** son planes/etapas/clientes dentro de esa persona.
-- La biblioteca de alimentos se comparte entre los perfiles de una cuenta.
+- La biblioteca de alimentos es **global**: se comparte entre todas las cuentas y todos los perfiles.
+- Editar o eliminar un alimento afecta a toda la familia; los registros históricos conservan su snapshot.
 - La unidad es gramos, sin tazas ni porciones.
 - El peso es siempre en crudo y limpio.
 - Los macros se calculan sin redondear y se formatean al mostrar.

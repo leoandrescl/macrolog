@@ -3,6 +3,7 @@ import { ChevronRight, Plus, Scale, Search, SearchX } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
+import { useGlobalFoods } from "@/app/GlobalFoodsProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -73,14 +74,24 @@ export function FoodsPage() {
   const [editingFood, setEditingFood] = useState<Food | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const createOpen = searchParams.get("nuevo") === "1";
+  const { status: foodsSyncStatus } = useGlobalFoods();
 
-  const foods = useLiveQuery(() => db.foods.orderBy("nameNormalized").toArray(), []);
+  const foods = useLiveQuery(
+    () =>
+      db.foods
+        .orderBy("nameNormalized")
+        .filter((food) => food.deletedAt === undefined)
+        .toArray(),
+    [],
+  );
 
   const query = normalizeText(search);
   const filteredFoods = useMemo(() => {
     if (!foods) return undefined;
     return foods.filter((food) => matchesFoodQuery(food.name, query));
   }, [foods, query]);
+  const foodsLoading =
+    foods === undefined || (foods.length === 0 && foodsSyncStatus === "loading");
 
   const openCreate = () => {
     const next = new URLSearchParams(searchParams);
@@ -99,7 +110,7 @@ export function FoodsPage() {
       <PageHeader
         eyebrow="Biblioteca"
         title="Alimentos"
-        description="Tus valores de referencia por 100 g. Todos los pesos corresponden a alimento crudo y limpio."
+        description="Biblioteca global compartida por todas las cuentas y perfiles. Valores por 100 g en crudo y limpio."
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
@@ -129,13 +140,13 @@ export function FoodsPage() {
       </div>
 
       <div className="mt-5">
-        {foods === undefined ? (
+        {foodsLoading ? (
           <FoodListSkeleton />
         ) : foods.length === 0 ? (
           <EmptyState
             icon={<Scale className="size-5" />}
-            title="Tu biblioteca está vacía"
-            description="Crea tus alimentos una sola vez con los valores por 100 g en crudo. Después bastará indicar los gramos consumidos."
+            title="La biblioteca está vacía"
+            description="Crea el primer alimento con sus valores por 100 g en crudo. Quedará disponible para todos los perfiles y todas las cuentas."
             action={
               <Button onClick={openCreate}>
                 <Plus className="size-4" />
@@ -171,7 +182,8 @@ export function FoodsPage() {
               ))}
             </Card>
             <p className="mt-3 px-1 text-[11px] leading-relaxed text-subtle">
-              Toca un alimento para editar sus valores o eliminarlo de la biblioteca.
+              Toca un alimento para editarlo o eliminarlo. Los cambios afectan a todas las
+              cuentas y perfiles.
             </p>
           </>
         )}

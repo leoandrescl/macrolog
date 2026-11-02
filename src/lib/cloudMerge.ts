@@ -1,5 +1,5 @@
 import type { CloudSnapshot } from "@/lib/api";
-import type { DiaryEntry, Food, MealBlock, MetaRow, Profile } from "@/types/domain";
+import type { DiaryEntry, MealBlock, MetaRow, Profile } from "@/types/domain";
 
 interface Entity {
   id: string;
@@ -26,13 +26,15 @@ function mergeEntities<T extends Entity>(local: T[], remote: T[]): T[] {
  * une registros por ID y conserva la versión con updatedAt más reciente.
  * Las eliminaciones concurrentes pueden resucitar un registro, pero nunca
  * se descarta información nueva de ninguno de los dos dispositivos.
+ *
+ * Los alimentos no forman parte de este snapshot: se sincronizan aparte
+ * porque son globales para todas las cuentas.
  */
 export function mergeSnapshots(
   local: CloudSnapshot,
   remote: CloudSnapshot,
 ): CloudSnapshot {
   const profiles = mergeEntities<Profile>(local.data.profiles, remote.data.profiles);
-  const foods = mergeEntities<Food>(local.data.foods, remote.data.foods);
   const meals = mergeEntities<MealBlock>(local.data.meals, remote.data.meals);
   const entries = mergeEntities<DiaryEntry>(local.data.entries, remote.data.entries);
 
@@ -57,7 +59,6 @@ export function mergeSnapshots(
     activeProfileId,
     data: {
       profiles,
-      foods,
       meals,
       entries,
       meta: [...metaMap.values()].sort((left, right) =>

@@ -1,9 +1,9 @@
 import { db } from "@/db/db";
 import { ACTIVE_PROFILE_KEY, SCHEMA_VERSION } from "@/lib/constants";
 import { formatFileDate } from "@/lib/format";
-import { notifyLocalDataChange } from "@/lib/syncEvents";
+import { notifyFoodsChange, notifyLocalDataChange } from "@/lib/syncEvents";
 import { backupSchema } from "@/lib/validation";
-import type { BackupFile } from "@/types/domain";
+import type { BackupFile, Food } from "@/types/domain";
 
 export async function createBackup(): Promise<BackupFile> {
   const [profiles, foods, meals, entries, meta] = await Promise.all([
@@ -70,6 +70,10 @@ export async function parseBackupFile(file: File): Promise<BackupFile> {
   return parsed.data as BackupFile;
 }
 
+/**
+ * Reemplaza los datos privados de la cuenta. Los alimentos del respaldo se
+ * fusionan con la biblioteca global en lugar de borrar la existente.
+ */
 export async function restoreBackup(backup: BackupFile): Promise<void> {
   const profileIds = new Set(backup.data.profiles.map((profile) => profile.id));
   const mealIds = new Set(backup.data.meals.map((meal) => meal.id));
@@ -99,6 +103,7 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
     meta.push({ key: ACTIVE_PROFILE_KEY, value: activeProfileId });
   }
 
+  let importedFoods = 0;
   await db.transaction(
     "rw",
     db.profiles,
@@ -108,21 +113,51 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
     db.meta,
     async () => {
       await db.profiles.clear();
-      await db.foods.clear();
       await db.meals.clear();
       await db.entries.clear();
       await db.meta.clear();
 
       await db.profiles.bulkPut(backup.data.profiles);
-      await db.foods.bulkPut(backup.data.foods);
       await db.meals.bulkPut(backup.data.meals);
       await db.entries.bulkPut(backup.data.entries);
       if (meta.length) await db.meta.bulkPut(meta);
+
+      if (backup.data.foods.length) {
+        const existing = await db.foods.bulkGet(backup.data.foods.map((food) => food.id));
+        const updates: Food[] = [];
+
+        for (let index = 0; index < backup.data.foods.length; index += 1) {
+          const food = backup.data.foods[index];
+          const local = existing[index];
+          if (!food) continue;
+          if (local && local.updatedAt >= food.updatedAt) continue;
+          updates.push(food);
+        }
+
+        if (updates.length) {
+          await db.foods.bulkPut(updates);
+          importedFoods = updates.length;
+        }
+      }
     },
   );
+
+  notifyLocalDataChange();
+  if (importedFoods > 0) notifyFoodsChange();
+}
+
+/** Limpia solo los datos privados; la biblioteca global permanece. */
+export async function clearAccountData(): Promise<void> {
+  await db.transaction("rw", db.profiles, db.meals, db.entries, db.meta, async () => {
+    await db.profiles.clear();
+    await db.meals.clear();
+    await db.entries.clear();
+    await db.meta.clear();
+  });
   notifyLocalDataChange();
 }
 
+/** Limpia también la biblioteca local. Reservado para el reinicio total. */
 export async function clearAllData(): Promise<void> {
   await db.transaction(
     "rw",
@@ -140,4 +175,5 @@ export async function clearAllData(): Promise<void> {
     },
   );
   notifyLocalDataChange();
+  notifyFoodsChange();
 }

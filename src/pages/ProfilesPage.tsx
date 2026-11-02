@@ -190,7 +190,7 @@ export function ProfilesPage() {
       <PageHeader
         eyebrow="Tu cuenta"
         title="Perfiles"
-        description="Planes, etapas o clientes dentro de tu cuenta. La biblioteca de alimentos se comparte entre todos tus perfiles."
+        description="Planes, etapas o clientes dentro de tu cuenta. La biblioteca de alimentos es global para todas las cuentas y perfiles."
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
@@ -398,7 +398,7 @@ export function ProfilesPage() {
                 </p>
                 <p className="mt-0.5 max-w-md text-[11px] leading-relaxed text-muted">
                   Se eliminarán su meta, sus bloques y todos sus registros. Los alimentos
-                  de la biblioteca y los demás perfiles se mantienen.
+                  globales de la biblioteca y los demás perfiles se mantienen.
                 </p>
               </div>
             </div>

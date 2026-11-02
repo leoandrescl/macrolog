@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CloudSnapshot } from "@/lib/api";
 import { mergeSnapshots } from "@/lib/cloudMerge";
-import type { DiaryEntry, Food, Profile } from "@/types/domain";
+import type { DiaryEntry, Profile } from "@/types/domain";
 
 const profile = (id: string, updatedAt: number, name = id): Profile => ({
   id,
@@ -11,15 +11,6 @@ const profile = (id: string, updatedAt: number, name = id): Profile => ({
   goals: { kcal: 2000, protein: 150, carbs: 200, fat: 67 },
   updatedAt,
   createdAt: 1,
-});
-
-const food = (id: string, updatedAt: number, name = id): Food => ({
-  id,
-  name,
-  nameNormalized: name,
-  per100: { kcal: 100, protein: 10, carbs: 10, fat: 2 },
-  createdAt: 1,
-  updatedAt,
 });
 
 const entry = (id: string, updatedAt: number, grams = 100): DiaryEntry => ({
@@ -37,25 +28,22 @@ const entry = (id: string, updatedAt: number, grams = 100): DiaryEntry => ({
 
 const empty = (): CloudSnapshot => ({
   activeProfileId: null,
-  data: { profiles: [], foods: [], meals: [], entries: [], meta: [] },
+  data: { profiles: [], meals: [], entries: [], meta: [] },
 });
 
 describe("merge de datos en la nube", () => {
   it("une registros nuevos de ambos dispositivos", () => {
     const local = empty();
     local.data.profiles = [profile("p1", 10)];
-    local.data.foods = [food("f1", 10)];
     local.data.entries = [entry("e1", 10)];
 
     const remote = empty();
     remote.data.profiles = [profile("p2", 20)];
-    remote.data.foods = [food("f2", 20)];
     remote.data.entries = [entry("e2", 20)];
 
     const merged = mergeSnapshots(local, remote);
 
     expect(merged.data.profiles.map((item) => item.id)).toEqual(["p1", "p2"]);
-    expect(merged.data.foods.map((item) => item.id)).toEqual(["f1", "f2"]);
     expect(merged.data.entries.map((item) => item.id)).toEqual(["e1", "e2"]);
   });
 
@@ -92,5 +80,13 @@ describe("merge de datos en la nube", () => {
       key: "activeProfileId",
       value: "p2",
     });
+  });
+
+  it("no incluye alimentos en el snapshot privado de la cuenta", () => {
+    const local = empty();
+    const remote = empty();
+    const merged = mergeSnapshots(local, remote);
+
+    expect(merged.data).not.toHaveProperty("foods");
   });
 });

@@ -7,6 +7,7 @@ import {
   requireSession,
 } from "./auth";
 import { loadSnapshot, removeSnapshot, saveSnapshot, validateSnapshot } from "./data";
+import { listFoods, parseFoodsPayload, upsertFoods } from "./foods";
 import type { AuthUser, Env } from "./types";
 import {
   AUTH_BODY_LIMIT,
@@ -93,6 +94,14 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     return deleteData(request, env);
   }
 
+  if (path === "/api/foods" && method === "GET") {
+    return getFoods(request, env);
+  }
+
+  if (path === "/api/foods" && method === "PUT") {
+    return putFoods(request, env);
+  }
+
   if (
     [
       "/api/auth/register",
@@ -101,6 +110,7 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
       "/api/auth/session",
       "/api/auth/change-password",
       "/api/data",
+      "/api/foods",
     ].includes(path)
   ) {
     return json({ error: "Método no permitido.", code: "method_not_allowed" }, 405);
@@ -312,4 +322,19 @@ async function deleteData(request: Request, env: Env): Promise<Response> {
   const auth = await requireSession(request, env);
   await removeSnapshot(env, auth.user.id);
   return json({ ok: true });
+}
+
+async function getFoods(request: Request, env: Env): Promise<Response> {
+  await requireSession(request, env);
+  const result = await listFoods(env);
+  return json(result);
+}
+
+async function putFoods(request: Request, env: Env): Promise<Response> {
+  assertValidOrigin(request);
+  await requireSession(request, env);
+  const body = await readJsonBody(request, DATA_BODY_LIMIT);
+  const foods = parseFoodsPayload(body);
+  const updated = await upsertFoods(env, foods);
+  return json({ updated, updatedAt: Date.now() });
 }

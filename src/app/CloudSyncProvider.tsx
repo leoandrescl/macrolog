@@ -12,7 +12,12 @@ import {
 import { SplashScreen } from "@/components/layout/SplashScreen";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
-import { clearAllData, createBackup, restoreBackup } from "@/db/repositories/backup.repo";
+import {
+  clearAccountData,
+  createBackup,
+  restoreBackup,
+} from "@/db/repositories/backup.repo";
+import { mergeFoodsIntoLibrary } from "@/db/repositories/foods.repo";
 import {
   ApiError,
   type AuthUser,
@@ -43,7 +48,6 @@ const CloudSyncContext = createContext<CloudSyncContextValue | null>(null);
 function hasContent(snapshot: CloudSnapshot): boolean {
   return (
     snapshot.data.profiles.length > 0 ||
-    snapshot.data.foods.length > 0 ||
     snapshot.data.meals.length > 0 ||
     snapshot.data.entries.length > 0
   );
@@ -53,19 +57,37 @@ async function loadLocalSnapshot(): Promise<CloudSnapshot> {
   const backup = await createBackup();
   return {
     activeProfileId: backup.activeProfileId,
-    data: backup.data,
+    data: {
+      profiles: backup.data.profiles,
+      meals: backup.data.meals,
+      entries: backup.data.entries,
+      meta: backup.data.meta,
+    },
   };
 }
 
 async function applySnapshot(snapshot: CloudSnapshot): Promise<void> {
-  const backup: BackupFile = {
-    app: "macrolog",
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    activeProfileId: snapshot.activeProfileId,
-    data: snapshot.data,
-  };
+  const legacyFoods = snapshot.data.foods ?? [];
+
   await withoutLocalChangeNotifications(async () => {
+    // Migra alimentos que versiones anteriores subían dentro de la cuenta.
+    if (legacyFoods.length) {
+      await mergeFoodsIntoLibrary(legacyFoods);
+    }
+
+    const backup: BackupFile = {
+      app: "macrolog",
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      activeProfileId: snapshot.activeProfileId,
+      data: {
+        profiles: snapshot.data.profiles,
+        foods: [],
+        meals: snapshot.data.meals,
+        entries: snapshot.data.entries,
+        meta: snapshot.data.meta,
+      },
+    };
     await restoreBackup(backup);
   });
 }
@@ -239,11 +261,11 @@ export function CloudSyncProvider({
 
       if (metaRef.current.ownerId && metaRef.current.ownerId !== user.id) {
         await withoutLocalChangeNotifications(async () => {
-          await clearAllData();
+          await clearAccountData();
         });
         local = {
           activeProfileId: null,
-          data: { profiles: [], foods: [], meals: [], entries: [], meta: [] },
+          data: { profiles: [], meals: [], entries: [], meta: [] },
         };
         persistMeta({ ownerId: null, revision: 0, dirty: false, lastSyncedAt: null });
       }
@@ -444,7 +466,7 @@ export function CloudSyncProvider({
       }
       await deleteCloudData();
       await withoutLocalChangeNotifications(async () => {
-        await clearAllData();
+        await clearAccountData();
       });
       persistMeta({
         ownerId: user.id,

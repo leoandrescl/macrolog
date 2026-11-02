@@ -136,7 +136,7 @@ export function FoodFormSheet({
       setConfirmDelete(false);
       toast({
         title: "Alimento eliminado",
-        description: `${food.name}. Los registros anteriores se conservan.`,
+        description: `${food.name} salió de la biblioteca global. Los registros anteriores se conservan.`,
       });
       onClose();
     } catch (error) {
@@ -155,7 +155,7 @@ export function FoodFormSheet({
         open={open}
         onClose={onClose}
         title={isEditing ? "Editar alimento" : "Nuevo alimento"}
-        description="Valores por 100 g de alimento en crudo y limpio."
+        description="Biblioteca global: los valores y cambios quedan disponibles para todas las cuentas y perfiles."
         closeDisabled={isSubmitting || deleting}
         footer={
           <div className="flex gap-2">
@@ -181,7 +181,10 @@ export function FoodFormSheet({
       >
         <div className="mb-4 flex gap-2.5 rounded-2xl border border-accent/15 bg-accent/5 p-3 text-xs leading-relaxed text-muted">
           <Info className="mt-0.5 size-4 shrink-0 text-accent" />
-          <p>{RAW_BASIS_COPY}</p>
+          <p>
+            {RAW_BASIS_COPY} Este alimento pertenece a la biblioteca global: cualquier
+            cambio afecta a todas las cuentas y perfiles.
+          </p>
         </div>
 
         <form
@@ -269,8 +272,8 @@ export function FoodFormSheet({
                 Eliminar alimento
               </button>
               <p className="mt-1 px-2 text-[11px] leading-relaxed text-subtle">
-                Se quitará de la biblioteca. Los registros anteriores conservan sus
-                valores originales.
+                Se quitará de la biblioteca global para todas las cuentas. Los registros
+                anteriores conservan sus valores originales.
               </p>
             </div>
           ) : null}
@@ -280,7 +283,7 @@ export function FoodFormSheet({
       <ConfirmDialog
         open={confirmDelete}
         title="Eliminar alimento"
-        description="Se quitará de tu biblioteca. Los registros ya guardados conservan su snapshot y no cambiarán."
+        description="Se quitará de la biblioteca global para todas las cuentas y perfiles. Los registros ya guardados conservan su snapshot y no cambiarán."
         confirmLabel="Eliminar"
         tone="danger"
         loading={deleting}

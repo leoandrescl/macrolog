@@ -26,10 +26,22 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 const errors = [];
-page.on("console", (message) => {
-  if (message.type() === "error") errors.push(message.text());
-});
-page.on("pageerror", (error) => errors.push(error.message));
+
+function watchErrors(target, label = "") {
+  target.on("console", (message) => {
+    if (message.type() !== "error") return;
+    const url = message.location()?.url ?? "";
+    const text = message.text();
+    // Un 401 en una petición ya autenticada puede ocurrir al cerrar sesión.
+    if (text.includes("401") && /\/api\/(data|foods)/.test(url)) return;
+    errors.push(`${label}${text}${url ? ` [${url}]` : ""}`);
+  });
+  target.on("pageerror", (error) => {
+    errors.push(`${label}${error.message}`);
+  });
+}
+
+watchErrors(page);
 
 const response = await page.goto(`${base}/`, {
   waitUntil: "domcontentloaded",
@@ -44,7 +56,10 @@ const security = {
   frameOptions: response?.headers()["x-frame-options"],
 };
 
-const email = `deploy-${Date.now()}@example.com`;
+const runId = Date.now();
+const email = `deploy-${runId}@example.com`;
+const emailB = `deploy-b-${runId}@example.com`;
+const foodName = `Arroz global ${runId}`;
 await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
 await page.getByLabel("Tu nombre").fill("Deploy Test");
 await page.getByLabel("Correo", { exact: true }).fill(email);
@@ -83,20 +98,37 @@ const macroSplit = await page.evaluate(() => {
 });
 
 await nav.getByRole("link", { name: "Alimentos" }).click();
-await page.getByRole("button", { name: "Crear primer alimento" }).click();
-await page.getByLabel("Nombre del alimento").fill("Arroz blanco");
+await page.getByRole("heading", { name: "Alimentos" }).waitFor();
+await page.waitForFunction(
+  () => Boolean(localStorage.getItem("macrolog.foods.sync")),
+  null,
+  { timeout: 20000 },
+);
+const emptyCreateButton = page.getByRole("button", { name: "Crear primer alimento" });
+const normalCreateButton = page.getByRole("button", { name: "Nuevo alimento" });
+if (await emptyCreateButton.count()) {
+  await emptyCreateButton.click();
+} else {
+  await normalCreateButton.click();
+}
+await page.getByLabel("Nombre del alimento").fill(foodName);
 await page.getByLabel("Calorías").fill("130");
 await page.getByLabel("Proteína").fill("2,7");
 await page.getByLabel("Carbohidratos").fill("28");
 await page.getByLabel("Grasa").fill("0,3");
 await page.getByRole("button", { name: "Crear alimento" }).click();
 await page.waitForFunction(() => !document.querySelector("dialog[open]"));
+await page.waitForFunction(
+  () => Boolean(localStorage.getItem("macrolog.foods.sync")),
+  null,
+  { timeout: 20000 },
+);
 
 await nav.getByRole("link", { name: "Diario" }).click();
 await page.getByRole("button", { name: "Registrar alimento" }).click();
 await page
   .getByRole("dialog")
-  .getByRole("button", { name: /Arroz blanco/ })
+  .getByRole("button", { name: new RegExp(foodName) })
   .click();
 await page.getByLabel("Cantidad consumida (en crudo)").fill("150");
 await page.getByRole("button", { name: /Agregar 150 g/ }).click();
@@ -171,6 +203,46 @@ const account = await page.evaluate(() => {
   return user ? JSON.parse(user) : null;
 });
 
+// Segunda cuenta: comprueba que la biblioteca es global entre cuentas.
+const contextB = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  isMobile: true,
+  hasTouch: true,
+  locale: "es-CL",
+});
+const pageB = await contextB.newPage();
+watchErrors(pageB, "B: ");
+
+await pageB.goto(`${base}/`, { waitUntil: "domcontentloaded", timeout: 30000 });
+await pageB.getByText("Entra a tu MacroLog").waitFor({ timeout: 15000 });
+await pageB.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+await pageB.getByLabel("Tu nombre").fill("Deploy Test B");
+await pageB.getByLabel("Correo", { exact: true }).fill(emailB);
+await pageB.getByLabel("Contraseña", { exact: true }).fill(password);
+await pageB.getByLabel("Repite la contraseña").fill(password);
+await pageB.getByLabel("Código de familia").fill(familyCode);
+await pageB
+  .locator("form")
+  .getByRole("button", { name: "Crear cuenta", exact: true })
+  .click();
+await pageB.getByText("Crea tu primer perfil").waitFor({ timeout: 20000 });
+await pageB.getByLabel("Nombre del perfil").fill("Deploy Profile B");
+await pageB.getByRole("button", { name: "Crear mi perfil" }).click();
+await pageB.getByRole("button", { name: "Registrar alimento" }).waitFor({
+  timeout: 15000,
+});
+
+const navB = pageB.locator('nav[aria-label="Navegación principal"]').last();
+await navB.getByRole("link", { name: "Alimentos" }).click();
+await pageB.getByText(foodName).first().waitFor({ timeout: 25000 });
+const globalFoodVisible = await pageB.getByText(foodName).first().isVisible();
+const foodsSyncB = await pageB.evaluate(() =>
+  localStorage.getItem("macrolog.foods.sync"),
+);
+await pageB.screenshot({ path: ".artifacts/deploy-global-foods.png", fullPage: true });
+await contextB.close();
+
 await browser.close();
 
 console.log(
@@ -180,6 +252,12 @@ console.log(
       account: account?.email,
       macroSplit,
       synced,
+      globalFood: {
+        name: foodName,
+        visibleInSecondAccount: globalFoodVisible,
+        foodsSyncB,
+        emailB,
+      },
       download: { name: download.suggestedFilename(), saved: Boolean(downloadPath) },
       pwa,
       offline,

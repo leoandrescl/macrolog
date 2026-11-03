@@ -66,7 +66,7 @@ export function MealSection({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-line px-4 py-3 sm:px-5">
+      <div className="flex items-center gap-3 border-b border-line bg-surface-3 px-4 py-3 sm:px-5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-sm font-semibold text-fg">{meal.name}</h2>
@@ -77,22 +77,39 @@ export function MealSection({
               </span>
             ) : null}
           </div>
-          <p className="num mt-0.5 text-[11px] text-muted">
-            {entries.length
-              ? `${formatKcal(total.kcal)} kcal · ${formatMacro(total.protein)} g proteína`
-              : "Sin alimentos registrados"}
-          </p>
+          {entries.length ? (
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+              <span className="num font-semibold text-fg">
+                {formatKcal(total.kcal)}
+                <span className="ml-0.5 font-medium text-subtle">kcal</span>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-macro-protein" />P{" "}
+                <span className="num">{formatMacro(total.protein)}</span> g
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-macro-carbs" />C{" "}
+                <span className="num">{formatMacro(total.carbs)}</span> g
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-macro-fat" />G{" "}
+                <span className="num">{formatMacro(total.fat)}</span> g
+              </span>
+            </div>
+          ) : (
+            <p className="mt-0.5 text-[11px] text-subtle">Sin alimentos registrados</p>
+          )}
         </div>
         {!archived ? (
           <Button
-            variant="ghost"
+            variant="soft"
             size="sm"
-            className="shrink-0 px-2.5"
+            className="shrink-0"
             aria-label={`Agregar alimento a ${meal.name}`}
             onClick={() => onAdd(meal.id)}
           >
             <Plus className="size-4" />
-            <span className="hidden sm:inline">Agregar</span>
+            Agregar
           </Button>
         ) : null}
       </div>
@@ -108,7 +125,7 @@ export function MealSection({
           <button
             type="button"
             onClick={() => onAdd(meal.id)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line px-3 py-3 text-xs font-medium text-subtle transition hover:border-line-strong hover:bg-surface-2/50 hover:text-fg"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-accent/30 bg-accent/5 px-3 py-3 text-xs font-semibold text-accent transition hover:border-accent/50 hover:bg-accent/10"
           >
             <Plus className="size-3.5" />
             Agregar alimento a {meal.name.toLowerCase()}

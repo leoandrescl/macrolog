@@ -3,7 +3,7 @@ import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "soft" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -19,6 +19,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
     "bg-accent text-accent-contrast shadow-[0_8px_24px_-12px_var(--accent)] hover:bg-accent-strong active:brightness-95",
   secondary:
     "border border-line bg-surface-2 text-fg hover:border-line-strong hover:bg-surface-3",
+  soft: "border border-accent/25 bg-accent/10 text-accent hover:border-accent/40 hover:bg-accent/15",
   ghost: "text-muted hover:bg-surface-2 hover:text-fg",
   danger: "border border-danger/25 bg-danger/10 text-danger hover:bg-danger/20",
 };

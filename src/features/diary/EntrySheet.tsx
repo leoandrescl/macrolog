@@ -19,10 +19,10 @@ import {
 } from "@/db/repositories/entries.repo";
 import { cn } from "@/lib/cn";
 import { GRAM_PRESETS, MACRO_ROWS, MAX_GRAMS } from "@/lib/constants";
-import { formatGrams, formatKcal, formatMacro } from "@/lib/format";
+import { formatGrams, formatKcal, formatMacro, pluralize } from "@/lib/format";
 import { matchesFoodQuery, normalizeText } from "@/lib/normalize";
 import { EMPTY_NUTRITION, nutritionForGrams } from "@/lib/nutrition";
-import { parsePositiveInteger } from "@/lib/parseNumber";
+import { parseDecimalInput, parsePositiveInteger } from "@/lib/parseNumber";
 import type {
   DateKey,
   DiaryEntry,
@@ -33,11 +33,19 @@ import type {
 } from "@/types/domain";
 
 const FOODS_LIMIT = 200;
+const PORTION_PRESETS = [0.5, 1, 1.5, 2] as const;
+
+type AmountUnit = "grams" | "portions";
 
 interface SelectedFood {
   foodId: string;
   name: string;
   per100: Nutrition;
+  portionGrams?: number;
+}
+
+function inputNumber(value: number): string {
+  return String(Math.round(value * 100) / 100).replace(".", ",");
 }
 
 function FoodOption({ food, onSelect }: { food: Food; onSelect: (food: Food) => void }) {
@@ -55,6 +63,7 @@ function FoodOption({ food, onSelect }: { food: Food; onSelect: (food: Food) => 
         <span className="num mt-0.5 block text-[11px] text-muted">
           {formatKcal(food.per100.kcal)} kcal · P {formatMacro(food.per100.protein)} · C{" "}
           {formatMacro(food.per100.carbs)} · G {formatMacro(food.per100.fat)} / 100 g
+          {food.portionGrams ? ` · 1 porción ${formatGrams(food.portionGrams)} g` : ""}
         </span>
       </span>
     </button>
@@ -112,6 +121,8 @@ export function EntrySheet({
       : null,
   );
   const [gramsValue, setGramsValue] = useState(() => (entry ? String(entry.grams) : ""));
+  const [portionsValue, setPortionsValue] = useState("");
+  const [amountUnit, setAmountUnit] = useState<AmountUnit>("grams");
   const [mealId, setMealId] = useState(() => entry?.mealId ?? initialMealId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -151,6 +162,8 @@ export function EntrySheet({
     setError(null);
     setSaving(false);
     setDeleting(false);
+    setAmountUnit("grams");
+    setPortionsValue("");
 
     if (entry) {
       setStep("portion");
@@ -158,6 +171,7 @@ export function EntrySheet({
         foodId: entry.foodId,
         name: entry.foodName,
         per100: entry.per100,
+        portionGrams: entry.portionGrams,
       });
       setGramsValue(String(entry.grams));
       setMealId(entry.mealId);
@@ -205,11 +219,28 @@ export function EntrySheet({
   const foodsLoading =
     foods === undefined || (foods.length === 0 && foodsSyncStatus === "loading");
 
+  const portionGrams = selectedFood?.portionGrams;
+  const hasPortions = Boolean(portionGrams && portionGrams > 0);
   const grams = parsePositiveInteger(gramsValue);
+  const portions = parseDecimalInput(portionsValue);
+  const portionsValid = portions !== undefined && portions > 0;
+  const gramsFromPortions =
+    portionsValid && portionGrams ? Math.round(portions * portionGrams) : null;
+  const effectiveGrams = amountUnit === "portions" ? gramsFromPortions : grams;
+  const portionCountLabel =
+    portionsValid && portions !== undefined
+      ? `${formatMacro(portions)} ${pluralize(
+          Math.abs(portions - 1) < 0.05 ? 1 : 2,
+          "porción",
+          "porciones",
+        )}`
+      : null;
   const previewNutrition = useMemo(
     () =>
-      selectedFood ? nutritionForGrams(grams ?? 0, selectedFood.per100) : EMPTY_NUTRITION,
-    [grams, selectedFood],
+      selectedFood
+        ? nutritionForGrams(effectiveGrams ?? 0, selectedFood.per100)
+        : EMPTY_NUTRITION,
+    [effectiveGrams, selectedFood],
   );
 
   const chooseFood = (food: Food) => {
@@ -217,8 +248,11 @@ export function EntrySheet({
       foodId: food.id,
       name: food.name,
       per100: food.per100,
+      portionGrams: food.portionGrams,
     });
-    setGramsValue("100");
+    setGramsValue(String(food.portionGrams ?? 100));
+    setPortionsValue("");
+    setAmountUnit("grams");
     setError(null);
     setStep("portion");
   };
@@ -241,6 +275,37 @@ export function EntrySheet({
     if (error) setError(null);
   };
 
+  const adjustPortions = (delta: number) => {
+    const current = portions ?? 0;
+    const maxPortions = portionGrams ? MAX_GRAMS / portionGrams : MAX_GRAMS;
+    const next = Math.min(
+      Math.max(current + delta, 0.1),
+      Math.round(maxPortions * 100) / 100,
+    );
+    setPortionsValue(inputNumber(next));
+    if (error) setError(null);
+  };
+
+  const handlePortionsChange = (raw: string) => {
+    const cleaned = raw.replace(/[^\d.,]/g, "").slice(0, 7);
+    setPortionsValue(cleaned);
+    if (error) setError(null);
+  };
+
+  const changeAmountUnit = (unit: AmountUnit) => {
+    if (unit === amountUnit) return;
+
+    if (unit === "portions" && portionGrams) {
+      const sourceGrams = grams ?? portionGrams;
+      setPortionsValue(inputNumber(sourceGrams / portionGrams));
+    } else if (unit === "grams" && gramsFromPortions) {
+      setGramsValue(String(gramsFromPortions));
+    }
+
+    setAmountUnit(unit);
+    setError(null);
+  };
+
   const validatePortion = (): number | null => {
     if (!selectedFood) {
       setError("Elige un alimento.");
@@ -249,6 +314,17 @@ export function EntrySheet({
     if (!mealId) {
       setError("Crea un bloque de comida antes de registrar.");
       return null;
+    }
+    if (amountUnit === "portions" && hasPortions) {
+      if (!portionsValid || gramsFromPortions === null || gramsFromPortions <= 0) {
+        setError("Ingresa una cantidad de porciones mayor que 0.");
+        return null;
+      }
+      if (gramsFromPortions > MAX_GRAMS) {
+        setError(`La cantidad máxima es ${formatGrams(MAX_GRAMS)} g.`);
+        return null;
+      }
+      return gramsFromPortions;
     }
     if (grams === null) {
       setError("Ingresa una cantidad mayor que 0 g.");
@@ -341,7 +417,9 @@ export function EntrySheet({
     ? "Ajusta la cantidad o el bloque de comida."
     : step === "food"
       ? "Busca en la biblioteca global. Los valores son por 100 g en crudo."
-      : "Indica el peso consumido, en crudo y sin desperdicios.";
+      : hasPortions
+        ? "Indica los gramos o la cantidad de porciones consumidas, en crudo."
+        : "Indica el peso consumido, en crudo y sin desperdicios.";
 
   const footer =
     step === "portion" ? (
@@ -367,8 +445,10 @@ export function EntrySheet({
         >
           {isEditing
             ? "Guardar cambios"
-            : grams
-              ? `Agregar ${formatGrams(grams)} g`
+            : effectiveGrams
+              ? amountUnit === "portions" && portionCountLabel
+                ? `Agregar ${portionCountLabel} · ${formatGrams(effectiveGrams)} g`
+                : `Agregar ${formatGrams(effectiveGrams)} g`
               : "Agregar al diario"}
         </Button>
       </div>
@@ -481,6 +561,11 @@ export function EntrySheet({
                   {formatMacro(selectedFood.per100.carbs)} · G{" "}
                   {formatMacro(selectedFood.per100.fat)}
                 </p>
+                {selectedFood.portionGrams ? (
+                  <p className="num mt-1 text-[11px] text-subtle">
+                    1 porción = {formatGrams(selectedFood.portionGrams)} g
+                  </p>
+                ) : null}
               </div>
               {!entry ? (
                 <button
@@ -496,79 +581,197 @@ export function EntrySheet({
           </div>
 
           <div className="mt-5">
-            <label
-              htmlFor="entry-grams"
-              className="mb-2 block text-[13px] font-medium text-muted"
-            >
-              Cantidad consumida <span className="text-subtle">(en crudo)</span>
-            </label>
-            <div className="flex items-stretch gap-2">
-              <button
-                type="button"
-                aria-label="Restar 10 gramos"
-                className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted transition hover:border-line-strong hover:text-fg active:scale-[0.97]"
-                onClick={() => adjustGrams(-10)}
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <label
+                htmlFor={
+                  amountUnit === "portions" && hasPortions
+                    ? "entry-portions"
+                    : "entry-grams"
+                }
+                className="text-[13px] font-medium text-muted"
               >
-                <Minus className="size-5" />
-              </button>
-              <div className="relative min-w-0 flex-1">
-                <input
-                  ref={gramsRef}
-                  id="entry-grams"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete="off"
-                  value={gramsValue}
-                  onChange={(event) => handleGramsChange(event.target.value)}
-                  placeholder="100"
-                  className={cn(
-                    "num h-14 w-full rounded-2xl border bg-surface-2 px-3 text-center text-2xl font-bold tracking-tight text-fg outline-none transition placeholder:text-subtle focus:ring-4",
-                    error
-                      ? "border-danger/60 focus:border-danger focus:ring-danger/10"
-                      : "border-line focus:border-accent/60 focus:ring-accent/10",
-                  )}
-                  aria-invalid={Boolean(error)}
-                  aria-describedby={error ? "entry-grams-error" : undefined}
-                />
-                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-subtle">
-                  g
+                Cantidad consumida <span className="text-subtle">(en crudo)</span>
+              </label>
+              {portionGrams ? (
+                <span className="num text-[11px] text-subtle">
+                  1 porción = {formatGrams(portionGrams)} g
                 </span>
-              </div>
-              <button
-                type="button"
-                aria-label="Sumar 10 gramos"
-                className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted transition hover:border-line-strong hover:text-fg active:scale-[0.97]"
-                onClick={() => adjustGrams(10)}
-              >
-                <Plus className="size-5" />
-              </button>
+              ) : null}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {GRAM_PRESETS.map((preset) => (
+
+            {hasPortions ? (
+              <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-line bg-surface-2/60 p-1">
                 <button
-                  key={preset}
                   type="button"
-                  onClick={() => {
-                    setGramsValue(String(preset));
-                    setError(null);
-                  }}
+                  aria-pressed={amountUnit === "grams"}
+                  onClick={() => changeAmountUnit("grams")}
                   className={cn(
-                    "num rounded-full border px-3 py-1.5 text-[11px] font-medium transition",
-                    grams === preset
-                      ? "border-accent/40 bg-accent/10 text-accent"
-                      : "border-line bg-surface-2/50 text-muted hover:border-line-strong hover:text-fg",
+                    "rounded-lg px-3 py-2 text-xs font-semibold transition",
+                    amountUnit === "grams"
+                      ? "bg-surface text-fg shadow-sm"
+                      : "text-muted hover:text-fg",
                   )}
                 >
-                  {preset} g
+                  Gramos
                 </button>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  aria-pressed={amountUnit === "portions"}
+                  onClick={() => changeAmountUnit("portions")}
+                  className={cn(
+                    "rounded-lg px-3 py-2 text-xs font-semibold transition",
+                    amountUnit === "portions"
+                      ? "bg-surface text-fg shadow-sm"
+                      : "text-muted hover:text-fg",
+                  )}
+                >
+                  Porciones
+                </button>
+              </div>
+            ) : null}
+
+            {amountUnit === "portions" && hasPortions ? (
+              <>
+                <div className="flex items-stretch gap-2">
+                  <button
+                    type="button"
+                    aria-label="Restar media porción"
+                    className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted transition hover:border-line-strong hover:text-fg active:scale-[0.97]"
+                    onClick={() => adjustPortions(-0.5)}
+                  >
+                    <Minus className="size-5" />
+                  </button>
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      ref={gramsRef}
+                      id="entry-portions"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      value={portionsValue}
+                      onChange={(event) => handlePortionsChange(event.target.value)}
+                      placeholder="1"
+                      className={cn(
+                        "num h-14 w-full rounded-2xl border bg-surface-2 px-3 text-center text-2xl font-bold tracking-tight text-fg outline-none transition placeholder:text-subtle focus:ring-4",
+                        error
+                          ? "border-danger/60 focus:border-danger focus:ring-danger/10"
+                          : "border-line focus:border-accent/60 focus:ring-accent/10",
+                      )}
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={error ? "entry-amount-error" : undefined}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-subtle">
+                      {portions !== undefined && Math.abs(portions - 1) < 0.05
+                        ? "porción"
+                        : "porciones"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Sumar media porción"
+                    className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted transition hover:border-line-strong hover:text-fg active:scale-[0.97]"
+                    onClick={() => adjustPortions(0.5)}
+                  >
+                    <Plus className="size-5" />
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {PORTION_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        setPortionsValue(inputNumber(preset));
+                        setError(null);
+                      }}
+                      className={cn(
+                        "num rounded-full border px-3 py-1.5 text-[11px] font-medium transition",
+                        portions !== undefined && Math.abs(portions - preset) < 0.001
+                          ? "border-accent/40 bg-accent/10 text-accent"
+                          : "border-line bg-surface-2/50 text-muted hover:border-line-strong hover:text-fg",
+                      )}
+                    >
+                      {formatMacro(preset)} {preset === 1 ? "porción" : "porciones"}
+                    </button>
+                  ))}
+                </div>
+                {gramsFromPortions ? (
+                  <p className="num mt-1.5 text-[11px] text-subtle">
+                    Equivale a {formatGrams(gramsFromPortions)} g.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <div className="flex items-stretch gap-2">
+                  <button
+                    type="button"
+                    aria-label="Restar 10 gramos"
+                    className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted transition hover:border-line-strong hover:text-fg active:scale-[0.97]"
+                    onClick={() => adjustGrams(-10)}
+                  >
+                    <Minus className="size-5" />
+                  </button>
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      ref={gramsRef}
+                      id="entry-grams"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="off"
+                      value={gramsValue}
+                      onChange={(event) => handleGramsChange(event.target.value)}
+                      placeholder="100"
+                      className={cn(
+                        "num h-14 w-full rounded-2xl border bg-surface-2 px-3 text-center text-2xl font-bold tracking-tight text-fg outline-none transition placeholder:text-subtle focus:ring-4",
+                        error
+                          ? "border-danger/60 focus:border-danger focus:ring-danger/10"
+                          : "border-line focus:border-accent/60 focus:ring-accent/10",
+                      )}
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={error ? "entry-amount-error" : undefined}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-subtle">
+                      g
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Sumar 10 gramos"
+                    className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface-2 text-muted transition hover:border-line-strong hover:text-fg active:scale-[0.97]"
+                    onClick={() => adjustGrams(10)}
+                  >
+                    <Plus className="size-5" />
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {GRAM_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        setGramsValue(String(preset));
+                        setError(null);
+                      }}
+                      className={cn(
+                        "num rounded-full border px-3 py-1.5 text-[11px] font-medium transition",
+                        grams === preset
+                          ? "border-accent/40 bg-accent/10 text-accent"
+                          : "border-line bg-surface-2/50 text-muted hover:border-line-strong hover:text-fg",
+                      )}
+                    >
+                      {preset} g
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-5">
             <p className="mb-2 text-[13px] font-medium text-muted">
-              Aporte de esta porción
+              Aporte de esta cantidad
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-xl border border-line bg-surface-2/40 px-3 py-2.5">
@@ -650,7 +853,7 @@ export function EntrySheet({
 
           {error ? (
             <p
-              id="entry-grams-error"
+              id="entry-amount-error"
               className="mt-3 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-xs text-danger"
               role="alert"
             >

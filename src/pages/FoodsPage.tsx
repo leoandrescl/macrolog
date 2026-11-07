@@ -13,7 +13,7 @@ import { db } from "@/db/db";
 import { FoodFormSheet } from "@/features/foods/FoodFormSheet";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { RAW_BASIS_COPY } from "@/lib/constants";
-import { formatKcal, formatMacro } from "@/lib/format";
+import { formatGrams, formatKcal, formatMacro } from "@/lib/format";
 import { matchesFoodQuery, normalizeText } from "@/lib/normalize";
 import type { Food } from "@/types/domain";
 
@@ -46,6 +46,11 @@ function FoodRow({ food, onSelect }: { food: Food; onSelect: (food: Food) => voi
           {formatKcal(food.per100.kcal)}
         </p>
         <p className="text-[10px] text-subtle">kcal / 100 g</p>
+        {food.portionGrams ? (
+          <p className="num mt-0.5 text-[10px] text-subtle">
+            1 porción · {formatGrams(food.portionGrams)} g
+          </p>
+        ) : null}
       </div>
       <ChevronRight className="size-4 shrink-0 text-subtle transition group-hover:translate-x-0.5 group-hover:text-muted" />
     </button>
@@ -146,7 +151,7 @@ export function FoodsPage() {
           <EmptyState
             icon={<Scale className="size-5" />}
             title="La biblioteca está vacía"
-            description="Crea el primer alimento con sus valores por 100 g en crudo. Quedará disponible para todos los perfiles y todas las cuentas."
+            description="Crea el primer alimento con sus valores por 100 g en crudo y, si quieres, el peso de una porción. Quedará disponible para todos los perfiles y todas las cuentas."
             action={
               <Button onClick={openCreate}>
                 <Plus className="size-4" />

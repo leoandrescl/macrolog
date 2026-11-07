@@ -38,6 +38,8 @@ export interface Food {
   nameNormalized: string;
   /** Valores por 100 g de alimento en crudo y limpio. */
   per100: Nutrition;
+  /** Peso de una porción casera, por ejemplo 50 g para una rebanada de pan. */
+  portionGrams?: number;
   createdAt: number;
   updatedAt: number;
   /** Borrado lógico global: conserva el historial y propaga la eliminación. */
@@ -64,6 +66,8 @@ export interface DiaryEntry {
   foodName: string;
   grams: number;
   per100: Nutrition;
+  /** Snapshot del tamaño de porción vigente al registrar la comida. */
+  portionGrams?: number;
   createdAt: number;
   updatedAt: number;
 }

@@ -10,7 +10,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { TextField } from "@/components/ui/TextField";
 import { createFood, deleteFood, updateFood } from "@/db/repositories/foods.repo";
 import { RAW_BASIS_COPY } from "@/lib/constants";
-import { formatKcal } from "@/lib/format";
+import { formatGrams, formatKcal } from "@/lib/format";
 import { parseDecimalInput } from "@/lib/parseNumber";
 import {
   type FoodFormInput,
@@ -29,6 +29,7 @@ const EMPTY_VALUES: FoodFormInput = {
   protein: "",
   carbs: "",
   fat: "",
+  portionGrams: "",
 };
 
 function foodDefaults(food?: Food | null): FoodFormInput {
@@ -39,6 +40,7 @@ function foodDefaults(food?: Food | null): FoodFormInput {
     protein: inputNumber(food.per100.protein),
     carbs: inputNumber(food.per100.carbs),
     fat: inputNumber(food.per100.fat),
+    portionGrams: food.portionGrams ? String(food.portionGrams) : "",
   };
 }
 
@@ -105,6 +107,7 @@ export function FoodFormSheet({
           carbs: values.carbs,
           fat: values.fat,
         },
+        portionGrams: values.portionGrams,
       };
 
       if (food) {
@@ -115,7 +118,11 @@ export function FoodFormSheet({
 
       toast({
         title: isEditing ? "Alimento actualizado" : "Alimento creado",
-        description: `${values.name} · ${formatKcal(values.kcal)} kcal por 100 g`,
+        description: `${values.name} · ${formatKcal(values.kcal)} kcal por 100 g${
+          values.portionGrams
+            ? ` · 1 porción = ${formatGrams(values.portionGrams)} g`
+            : ""
+        }`,
         tone: "success",
       });
       onSaved?.(values.name);
@@ -236,6 +243,16 @@ export function FoodFormSheet({
               {...register("fat")}
             />
           </div>
+
+          <TextField
+            label="Peso de 1 porción"
+            suffix="g"
+            inputMode="numeric"
+            placeholder="Ej. 50"
+            hint="Opcional. Si lo indicas, podrás registrar este alimento por porciones además de por gramos."
+            error={errors.portionGrams?.message}
+            {...register("portionGrams")}
+          />
 
           {hasMacros ? (
             <div

@@ -42,6 +42,7 @@ PWA **local-first** para registrar calorías y macronutrientes **gramo a gramo**
 - Biblioteca **global**: los alimentos están disponibles para todas las cuentas y todos los perfiles.
 - Los cambios y eliminaciones se propagan automáticamente entre dispositivos y cuentas.
 - Valores por 100 g: kcal, proteína, carbohidratos y grasa.
+- Peso opcional de una porción casera, por ejemplo 50 g para una rebanada de pan.
 - Búsqueda insensible a tildes y mayúsculas.
 - Snapshot por registro: editar o eliminar un alimento no altera el historial.
 - Borrado lógico con tombstones para que una eliminación no “resucite” en otro dispositivo.
@@ -52,7 +53,9 @@ PWA **local-first** para registrar calorías y macronutrientes **gramo a gramo**
 - Vista diaria con selector de fecha y retorno rápido a hoy.
 - Registro por bloques de comida.
 - Búsqueda rápida con alimentos recientes.
-- Gramos con presets, steppers y vista previa de macros en tiempo real.
+- Cantidad por gramos o por porciones cuando el alimento tiene definido su peso por porción.
+- Gramos y porciones con presets, steppers y vista previa de macros en tiempo real.
+- El tamaño de porción se guarda como snapshot en el registro para que editar el alimento no altere comidas pasadas.
 - Edición de gramos y bloque, eliminación con “Deshacer”.
 - Resumen con calorías restantes, macros restantes y sobregiro.
 
@@ -192,9 +195,9 @@ La sincronización tiene dos canales independientes:
 ### Modelo local
 
 - `profiles`: perfil, color, metas y distribución porcentual opcional.
-- `foods`: biblioteca global, valores por 100 g y `deletedAt` para borrado lógico.
+- `foods`: biblioteca global, valores por 100 g, `portionGrams` opcional y `deletedAt` para borrado lógico.
 - `meals`: bloques por perfil, orden y archivado lógico.
-- `entries`: registros con fecha local, gramos y snapshot del alimento.
+- `entries`: registros con fecha local, gramos, snapshot del alimento y de su porción.
 - `meta`: perfil activo y metadatos.
 - `macrolog.sync` en localStorage: owner, revisión, estado pendiente y última sincronización de la cuenta.
 - `macrolog.foods.sync` en localStorage: última sincronización de la biblioteca global.

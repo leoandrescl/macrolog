@@ -2,7 +2,7 @@ import { Archive, ChevronRight, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatGrams, formatKcal, formatMacro } from "@/lib/format";
+import { formatGrams, formatKcal, formatMacro, pluralize } from "@/lib/format";
 import { entryNutrition, sumEntries } from "@/lib/nutrition";
 import type { DiaryEntry, MealBlock } from "@/types/domain";
 
@@ -14,6 +14,15 @@ function EntryRow({
   onEdit: (entry: DiaryEntry) => void;
 }) {
   const nutrition = entryNutrition(entry);
+  const portions = entry.portionGrams ? entry.grams / entry.portionGrams : null;
+  const portionLabel =
+    portions !== null
+      ? `${formatMacro(portions)} ${pluralize(
+          Math.abs(portions - 1) < 0.05 ? 1 : 2,
+          "porción",
+          "porciones",
+        )}`
+      : null;
 
   return (
     <button
@@ -24,7 +33,17 @@ function EntryRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-fg">{entry.foodName}</p>
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted">
-          <span className="num font-semibold text-fg">{formatGrams(entry.grams)} g</span>
+          {portionLabel ? (
+            <>
+              <span className="num font-semibold text-fg">{portionLabel}</span>
+              <span className="text-subtle">·</span>
+              <span className="num">{formatGrams(entry.grams)} g</span>
+            </>
+          ) : (
+            <span className="num font-semibold text-fg">
+              {formatGrams(entry.grams)} g
+            </span>
+          )}
           <span className="text-subtle">·</span>
           <span>
             P <span className="num">{formatMacro(nutrition.protein)}</span>

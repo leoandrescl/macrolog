@@ -11,6 +11,7 @@ export interface GlobalFood {
     carbs: number;
     fat: number;
   };
+  portionGrams?: number;
   createdAt: number;
   updatedAt: number;
   deletedAt?: number;
@@ -24,6 +25,7 @@ interface FoodRow {
   protein: number;
   carbs: number;
   fat: number;
+  portion_grams: number | null;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -76,6 +78,19 @@ function requireNutrient(value: unknown, field: string, max: number): number {
   return value;
 }
 
+function requirePortionGrams(value: unknown): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > 10_000
+  ) {
+    throw new HttpError("El peso de la porción no es válido.", 400, "invalid_food");
+  }
+  return value;
+}
+
 export function parseFood(value: unknown): GlobalFood {
   const food = requireRecord(value, "El alimento no es válido.");
   const id = requireFoodString(food.id, "El identificador del alimento", 1, 100);
@@ -95,6 +110,10 @@ export function parseFood(value: unknown): GlobalFood {
     createdAt: requireTimestamp(food.createdAt, "La fecha de creación"),
     updatedAt: requireTimestamp(food.updatedAt, "La fecha de actualización"),
   };
+
+  if (food.portionGrams !== undefined && food.portionGrams !== null) {
+    parsed.portionGrams = requirePortionGrams(food.portionGrams);
+  }
 
   if (food.deletedAt !== undefined && food.deletedAt !== null) {
     parsed.deletedAt = requireTimestamp(food.deletedAt, "La fecha de eliminación");
@@ -141,6 +160,7 @@ function toGlobalFood(row: FoodRow): GlobalFood {
     updatedAt: row.updated_at,
   };
 
+  if (typeof row.portion_grams === "number") food.portionGrams = row.portion_grams;
   if (typeof row.deleted_at === "number") food.deletedAt = row.deleted_at;
   return food;
 }
@@ -149,7 +169,7 @@ export async function listFoods(
   env: Env,
 ): Promise<{ foods: GlobalFood[]; updatedAt: number }> {
   const result = await env.DB.prepare(
-    "SELECT id, name, name_normalized, kcal, protein, carbs, fat, " +
+    "SELECT id, name, name_normalized, kcal, protein, carbs, fat, portion_grams, " +
       "created_at, updated_at, deleted_at FROM foods " +
       "ORDER BY name_normalized ASC, id ASC",
   ).all<FoodRow>();
@@ -168,12 +188,14 @@ export async function upsertFoods(env: Env, foods: GlobalFood[]): Promise<number
 
   const statement = env.DB.prepare(
     "INSERT INTO foods (id, name, name_normalized, kcal, protein, carbs, fat, " +
-      "created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+      "portion_grams, created_at, updated_at, deleted_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
       "ON CONFLICT(id) DO UPDATE SET " +
       "name = excluded.name, name_normalized = excluded.name_normalized, " +
       "kcal = excluded.kcal, protein = excluded.protein, carbs = excluded.carbs, " +
-      "fat = excluded.fat, created_at = excluded.created_at, " +
-      "updated_at = excluded.updated_at, deleted_at = excluded.deleted_at " +
+      "fat = excluded.fat, portion_grams = excluded.portion_grams, " +
+      "created_at = excluded.created_at, updated_at = excluded.updated_at, " +
+      "deleted_at = excluded.deleted_at " +
       "WHERE excluded.updated_at > foods.updated_at",
   );
 
@@ -190,6 +212,7 @@ export async function upsertFoods(env: Env, foods: GlobalFood[]): Promise<number
           food.per100.protein,
           food.per100.carbs,
           food.per100.fat,
+          food.portionGrams ?? null,
           food.createdAt,
           food.updatedAt,
           food.deletedAt ?? null,

@@ -3,11 +3,18 @@ import { describe, expect, it } from "vitest";
 import { mergeFoods, pickNewerRemoteFoods } from "@/lib/foodMerge";
 import type { Food } from "@/types/domain";
 
-const food = (id: string, updatedAt: number, name = id, deletedAt?: number): Food => ({
+const food = (
+  id: string,
+  updatedAt: number,
+  name = id,
+  deletedAt?: number,
+  portionGrams?: number,
+): Food => ({
   id,
   name,
   nameNormalized: name.toLowerCase(),
   per100: { kcal: 100, protein: 10, carbs: 10, fat: 2 },
+  portionGrams,
   createdAt: 1,
   updatedAt,
   deletedAt,
@@ -38,7 +45,7 @@ describe("biblioteca global de alimentos", () => {
 
   it("une bibliotecas por ID conservando la versión más reciente", () => {
     const merged = mergeFoods(
-      [food("f1", 20, "Arroz integral"), food("f2", 5, "Avena")],
+      [food("f1", 20, "Arroz integral", undefined, 50), food("f2", 5, "Avena")],
       [food("f1", 10, "Arroz"), food("f3", 10, "Banana")],
     );
 
@@ -47,5 +54,6 @@ describe("biblioteca global de alimentos", () => {
       "Avena",
       "Banana",
     ]);
+    expect(merged[0]?.portionGrams).toBe(50);
   });
 });

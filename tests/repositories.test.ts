@@ -138,6 +138,30 @@ describe("repositorios locales", () => {
     expect(await db.foods.count()).toBe(1);
   });
 
+  it("guarda el tamaño de porción en el alimento y en el registro", async () => {
+    const profile = await seedProfile();
+    const foodId = await createFood({
+      name: "Pan integral",
+      per100: { kcal: 255, protein: 12.8, carbs: 42.6, fat: 3 },
+      portionGrams: 50,
+    });
+
+    expect((await db.foods.get(foodId))?.portionGrams).toBe(50);
+
+    const meals = await db.meals.where("profileId").equals(profile.id).toArray();
+    const meal = meals.sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    const entry = await addEntry({
+      profileId: profile.id,
+      date: "2026-11-01",
+      mealId: meal.id,
+      foodId,
+      grams: 75,
+    });
+
+    expect(entry.portionGrams).toBe(50);
+    expect((await db.entries.get(entry.id))?.portionGrams).toBe(50);
+  });
+
   it("restaura un registro eliminado con su snapshot", async () => {
     const profile = await seedProfile();
     const { entry } = await seedEntry(profile.id);

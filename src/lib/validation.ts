@@ -5,6 +5,7 @@ import {
   MAX_FOOD_MACRO_PER_100,
   MAX_GOAL_KCAL,
   MAX_GOAL_MACRO,
+  MAX_GRAMS,
 } from "@/lib/constants";
 import { isValidDateKey } from "@/lib/dates";
 import { parseDecimalInput } from "@/lib/parseNumber";
@@ -51,6 +52,20 @@ export const foodFormSchema = z.object({
   protein: nonNegativeNutritionInput(MAX_FOOD_MACRO_PER_100, "la proteína por 100 g"),
   carbs: nonNegativeNutritionInput(MAX_FOOD_MACRO_PER_100, "los carbohidratos por 100 g"),
   fat: nonNegativeNutritionInput(MAX_FOOD_MACRO_PER_100, "la grasa por 100 g"),
+  portionGrams: z
+    .string()
+    .trim()
+    .refine((value) => {
+      if (!value) return true;
+      const parsed = parseDecimalInput(value);
+      return (
+        parsed !== undefined &&
+        Number.isInteger(parsed) &&
+        parsed >= 1 &&
+        parsed <= MAX_GRAMS
+      );
+    }, "Usa gramos enteros entre 1 y 10.000")
+    .transform((value) => (value ? parseDecimalInput(value) : undefined)),
 });
 
 export type FoodFormOutput = z.output<typeof foodFormSchema>;
@@ -111,6 +126,7 @@ export const foodEntitySchema = z.object({
   name: z.string().min(1),
   nameNormalized: z.string(),
   per100: nutritionSchema,
+  portionGrams: z.number().int().positive().max(MAX_GRAMS).optional(),
   createdAt: z.number().finite(),
   updatedAt: z.number().finite(),
   deletedAt: z.number().finite().optional(),
@@ -135,6 +151,7 @@ export const entryEntitySchema = z.object({
   foodName: z.string().min(1),
   grams: z.number().finite().positive(),
   per100: nutritionSchema,
+  portionGrams: z.number().int().positive().max(MAX_GRAMS).optional(),
   createdAt: z.number().finite(),
   updatedAt: z.number().finite(),
 });

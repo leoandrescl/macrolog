@@ -7,6 +7,7 @@ import type { Food, Nutrition } from "@/types/domain";
 export interface CreateFoodInput {
   name: string;
   per100: Nutrition;
+  portionGrams?: number;
 }
 
 export async function createFood(input: CreateFoodInput): Promise<string> {
@@ -18,6 +19,7 @@ export async function createFood(input: CreateFoodInput): Promise<string> {
     name: input.name.trim(),
     nameNormalized: normalizeText(input.name),
     per100: { ...input.per100 },
+    ...(input.portionGrams ? { portionGrams: input.portionGrams } : {}),
     createdAt: now,
     updatedAt: now,
   });
@@ -31,6 +33,7 @@ export async function updateFood(id: string, input: CreateFoodInput): Promise<vo
     name: input.name.trim(),
     nameNormalized: normalizeText(input.name),
     per100: { ...input.per100 },
+    portionGrams: input.portionGrams,
     updatedAt: Date.now(),
   });
   notifyFoodsChange();

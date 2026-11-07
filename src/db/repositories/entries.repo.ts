@@ -38,6 +38,7 @@ export async function addEntry(input: AddEntryInput): Promise<DiaryEntry> {
     foodName: food.name,
     grams,
     per100: { ...food.per100 },
+    ...(food.portionGrams ? { portionGrams: food.portionGrams } : {}),
     createdAt: now,
     updatedAt: now,
   };
